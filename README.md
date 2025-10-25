@@ -1,7 +1,36 @@
-StateCraft
-==========
+StateCraft 🚀
+============
 
-[StateCraft](https://github.com/PhrozenByte/statecraft) is a CLI utility designed for admins seeking a flexible and powerful tool to define arbitrary directory structures through user-provided scripts. Each script controls actions at the path encoded in the script's filename — these actions can include mounting read-only snapshots of filesystems (e.g., with Btrfs or LVM), creating bind mounts, generating archives, collecting system information, writing status files (e.g., listing the packages installed via your Linux distribution's package manager), or performing any other user-defined operation. StateCraft was primarily designed for use with backup software, enabling consistent backups of complex systems, but it can also serve as a universal solution for dynamically creating directory structures.
+[![GitHub release](https://img.shields.io/github/release/PhrozenByte/statecraft.svg)](https://github.com/PhrozenByte/statecraft/releases)
+[![License](https://img.shields.io/github/license/PhrozenByte/statecraft.svg)](https://github.com/PhrozenByte/statecraft/blob/main/LICENSE)
+[![Issues](https://img.shields.io/github/issues/PhrozenByte/statecraft.svg)](https://github.com/PhrozenByte/statecraft/issues)
+[![Pull Requests](https://img.shields.io/github/issues-pr/PhrozenByte/statecraft.svg)](https://github.com/PhrozenByte/statecraft/pulls)
+
+[StateCraft](https://github.com/PhrozenByte/statecraft) is a CLI utility designed for admins seeking a flexible and powerful tool to define arbitrary directory structures through user-provided scripts.
+
+Made with ♥ by [Daniel Rudolf](https://www.daniel-rudolf.de) ([@PhrozenByte](https://github.com/PhrozenByte)).
+
+---
+
+📚 Contents
+----------
+
+* 🔍 [About](#-about)
+* 📥 [Install](#-install)
+* 🚀 [Usage](#-usage)
+  * 🧩 [Running StateCraft](#-running-statecraft)
+  * 🔐 [Encoding paths in state scripts](#-encoding-paths-in-state-scripts)
+  * ⚙️ [Custom state scripts](#%EF%B8%8F-custom-state-scripts)
+  * 🌍 [Real-world example](#-real-world-example)
+  * 📝 [CLI options](#-cli-options)
+* ⚖️ [License & Copyright](#%EF%B8%8F-license--copyright)
+
+---
+
+🔍 About
+-------
+
+StateCraft uses shell scripts to create complex directory structures. Each script controls actions at the path encoded in the script's filename — these actions can include mounting read-only snapshots of filesystems (e.g., with Btrfs or LVM), creating bind mounts, generating archives, collecting system information, writing status files (e.g., listing the packages installed via your Linux distribution's package manager), or performing any other user-defined operation. StateCraft was primarily designed for use with backup software, enabling consistent backups of complex systems, but it can also serve as a universal solution for dynamically creating directory structures.
 
 StateCraft builds the desired directory structure inside a target directory (CLI option `--target`) by executing state scripts (`*.state.sh`) stored in a `paths.d` directory (CLI option `--paths`). After constructing the environment, it runs a specified command (CLI arguments `COMMAND [ARGS]...`) within this context. Upon completion, StateCraft tears down the target directory by reversing the actions taken — i.e., unmounting filesystems, deleting snapshots, removing files and directories, or undoing any other script effects.
 
@@ -13,11 +42,10 @@ Pull requests adding more built-in state scripts are very welcome, provided they
 
 StateCraft is free and open-source software, released under the terms of the [GNU General Public License v3](./LICENSE). Pull requests to improve or extend StateCraft, or to fix any issues, are very welcome! However, please open a new issue on GitHub before developing major changes — it's always better to discuss major changes beforehand. If you experience any issues with StateCraft, don't hesitate to open a new issue on GitHub. Please check StateCraft's documentation and previous GitHub issues first.
 
-Made with ♥ by [Daniel Rudolf](https://www.daniel-rudolf.de) ([@PhrozenByte](https://github.com/PhrozenByte)).
-
 ---
 
-## Install
+📥 Install
+--------
 
 StateCraft was written for [GNU Bash](https://www.gnu.org/software/bash/bash.html). The main program depends solely on common Linux utilities (tested with [BusyBox](https://busybox.net/) (just its utilities, not `ash`), and [GNU coreutils](https://www.gnu.org/software/coreutils/) + [`util-linux`](https://en.wikipedia.org/wiki/Util-linux)). However, state scripts may add additional runtime dependencies: `btrfs.sh` depends on `btrfs-progs` (the Btrfs userspace tools), `lvm.sh` depends on `lvm2` (the LVM userspace toolset), `tar-xz.sh` depends on `tar` and `xz`, both `disk-info.sh` and `fcos-release.sh` depend on [`jq`](https://jqlang.org/), `disk-info.sh` requires `lsblk` and `findmnt` from `util-linux`, and `fcos-release.sh` only runs on Fedora CoreOS.
 
@@ -35,7 +63,8 @@ To uninstall StateCraft, run `make uninstall` with the same variables. However, 
 
 ---
 
-## Usage
+🚀 Usage
+-------
 
 Using StateCraft is simple: Just run the `statecraft` script as follows:
 
@@ -47,9 +76,7 @@ Usage:
     statecraft -u ESCAPED_PATH
 ```
 
----
-
-### Running StateCraft
+### 🧩 Running StateCraft
 
 StateCraft's real magic happens within the `SCRIPTS_DIR` directory: With the `-p SCRIPTS_DIR` CLI option (or `--paths=SCRIPTS_DIR`), you tell StateCraft what to create and mount. You do this by either creating custom state scripts declaring the `setup_path` function (written in GNU Bash, details below), or by creating symbolic links to built-in state scripts like `bind.sh` or `disk-info.sh`. The state script's filename encodes the path you want StateCraft to create (whether StateCraft creates a file, directory, or mount point there depends on the state script), followed by `.state.sh`. For example, if you want to create a replica of `/home/daniel/Open Source/statecraft`, you first need to encode the path with `statecraft -e "/home/daniel/Open Source/statecraft"` (which returns `home-daniel-Open\x20Source-statecraft`), and then create a symbolic link `home-daniel-Open\x20Source-statecraft.state.sh` pointing to `/usr/local/lib/statecraft/state-scripts/bind.sh`. This allows you to run `statecraft` with the command you wish to run, e.g., [`tree -p`](https://en.wikipedia.org/wiki/Tree_%28command%29) (matching the `COMMAND [ARG]...` CLI argument). Since mounting usually requires root permissions, we run StateCraft with `sudo`.
 
@@ -96,9 +123,7 @@ By default, StateCraft will create the configured directory structure within a r
 
 StateCraft prints various informational messages to stdout by default. To suppress this, pass the `-q` CLI option (or `--quiet`); StateCraft itself will be silent, but stdout and stderr of `COMMAND` are still passed through as before. To increase verbosity and print debug messages to stderr, pass the `-v` CLI option (or `--verbose`).
 
----
-
-### Encoding paths in state scripts
+### 🔐 Encoding paths in state scripts
 
 As noted earlier, you tell StateCraft the paths to create by encoding them within a state script's filename. StateCraft uses the same encoding method Systemd uses for `*.mount` units (see `systemd-escape(1)`), but comes with its own implementation of the encoding algorithm. To escape a path, run with the `-e ABSOLUTE_PATH` CLI option (or `--escape=ABSOLUTE_PATH`). You must provide a normalized absolute path (i.e., it must start with `/` and not include path components like `..`). Remember to quote escaped paths appropriately, otherwise your shell might interpret escape sequences incorrectly. To reverse StateCraft's escape operation, run with the `-u ESCAPED_PATH` CLI option (or `--unescape=ESCAPED_PATH`). Both commands will output the escaped (with `-e`) or original (with `-u`) path, or print an error message and exit with a non-zero status code in case of invalid inputs.
 
@@ -109,9 +134,7 @@ $ statecraft -u "home-daniel-Open\x20Source-statecraft"
 /home/daniel/Open Source/statecraft
 ```
 
----
-
-### Custom state scripts
+### ⚙️ Custom state scripts
 
 StateCraft ships with many generally useful state scripts, but sometimes you want to do things that aren't possible with StateCraft's built-in scripts — like not including files as they are on your filesystem, but only what has changed in comparison to some previous state. State scripts are GNU Bash shell snippets that are `source`d by StateCraft's main script. All state scripts must declare the `setup_path` function, which implements the script's functionality. Besides declaring the `setup_path` function and possibly other functions used by `setup_path`, state scripts must not execute any active code besides checking for runtime dependencies.
 
@@ -121,15 +144,11 @@ State scripts can use all of StateCraft's public API defined in the [`include` d
 
 Check StateCraft's [built-in state scripts](./src/lib/statecraft/state-scripts/), or the small custom state script used in [`USAGE_EXAMPLE.md`](./USAGE_EXAMPLE.md) for examples.
 
----
-
-### Real-world example
+### 🌍 Real-world example
 
 Check out [`USAGE_EXAMPLE.md`](./USAGE_EXAMPLE.md) for a more comprehensive real-world example of how to use StateCraft. The documentation explains how to create a backup of a [Fedora CoreOS](https://fedoraproject.org/coreos/) (FCOS) server using bind mounts, Btrfs snapshots, StateCraft's built-in FCOS status file, and a custom mount script that creates a list of running Podman containers.
 
----
-
-### CLI options
+### 📝 CLI options
 
 Here is StateCraft's full CLI help (available with `statecraft --help`):
 
@@ -166,8 +185,8 @@ Made with ♥ by Daniel Rudolf <https://www.daniel-rudolf.de/>
 
 ---
 
-License & Copyright
--------------------
+⚖️ License & Copyright
+---------------------
 
 Copyright (C) 2025  Daniel Rudolf <[https://www.daniel-rudolf.de](https://www.daniel-rudolf.de)>
 

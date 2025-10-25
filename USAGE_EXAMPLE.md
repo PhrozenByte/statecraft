@@ -3,7 +3,20 @@ StateCraft Example - Backup a FCOS Server
 
 In this example, we will walk through how to use **StateCraft** to back up data from a **Fedora CoreOS** (FCOS) server.
 
-### Scenario
+---
+
+📚 Contents
+----------
+
+* 🔍 [Scenario](#-scenario)
+* ⚙️ [Create StateCraft's `paths.d` directory](#%EF%B8%8F-create-statecrafts-pathsd-directory)
+* 🛠️ [Create a custom state script for Podman containers](#%EF%B8%8F-create-a-custom-state-script-for-podman-containers)
+* 🚀 [Running StateCraft](#-running-statecraft)
+
+---
+
+🔍 Scenario
+----------
 
 Let's assume you're running a [Fedora CoreOS](https://fedoraproject.org/coreos/) (FCOS) server and want to back up specific data from it.
 
@@ -25,7 +38,8 @@ In total, you'll need to create seven StateCraft paths:
 
 This might sound like a lot of work, but the provided StateCraft state scripts do most of the heavy lifting. All you need to do is create symbolic links to encode the desired mounts and the `/fcos-release.json` file. For `/podman-containers.json`, you'll need to create a custom state script — but that's fairly simple, too.
 
-### Create StateCraft's `paths.d` directory
+⚙️ Create StateCraft's `paths.d` directory
+-----------------------------------------
 
 Let's assume you store the state scripts in `/etc/backup/paths.d` and that you've installed StateCraft to `/usr/local`. Here's how to set everything up:
 
@@ -48,7 +62,8 @@ ln -s "/usr/local/lib/statecraft/state-scripts/fcos-release.sh" "/etc/backup/pat
 touch "/etc/backup/paths.d/$(statecraft -e "/podman-containers.json").state.sh"
 ```
 
-### Create a custom state script for Podman containers
+🛠️ Create a custom state script for Podman containers
+----------------------------------------------------
 
 Our custom state script `/etc/backup/paths.d/podman\x2dcontainers.json.state.sh` is fairly simple. The `setup_path` function calls the `_setup_podman_containers_file` function, which in turn writes the output of the `_podman_containers` function to `/podman-containers.json`. The `_podman_containers` function returns a single JSON dictionary with the user-indexed output of `podman ps --format=json` for all users with a `/run/user/$UID/containers` directory (i.e., users with currently or previously running Podman containers). Besides calling `_podman_containers` and creating `/podman-containers.json`, the `_setup_podman_containers_file` function also tells StateCraft with the [`trap_exit` function](./src/lib/statecraft/include/traps.sh) to delete that file after finishing the backup command. Lastly, the script checks for runtime dependencies: it requires [`jq`](https://jqlang.org/) to manipulate JSON, [`sudo`](https://www.sudo.ws/) (or a compatible alternative) to call `podman` for different users, and Podman itself.
 
@@ -91,7 +106,8 @@ setup_path() {
 }
 ```
 
-### Running StateCraft
+🚀 Running StateCraft
+--------------------
 
 After setting up the symbolic links and the custom state script, your `/etc/backup/paths.d/` directory will look like this:
 
