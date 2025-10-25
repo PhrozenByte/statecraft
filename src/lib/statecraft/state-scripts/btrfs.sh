@@ -71,7 +71,7 @@ _btrfs_snapshot_create() {
     [ -n "$VERBOSE" ] || BTRFS_QUIET="-q"
 
     quiet "Create readonly btrfs snapshot of ${SUBVOLUME_PATH@Q} in ${SNAPSHOT_PATH@Q}"
-    cmd btrfs subvolume snapshot $BTRFS_QUIET -r "$SUBVOLUME_PATH" "$SNAPSHOT_PATH"
+    cmd btrfs $BTRFS_QUIET subvolume snapshot -r "$SUBVOLUME_PATH" "$SNAPSHOT_PATH"
 }
 
 _btrfs_snapshot_delete() {
@@ -79,7 +79,7 @@ _btrfs_snapshot_delete() {
     local BTRFS_QUIET=
     [ -n "$VERBOSE" ] || BTRFS_QUIET="-q"
 
-    trap_exit btrfs subvolume delete $BTRFS_QUIET "$SNAPSHOT_PATH"
+    trap_exit btrfs $BTRFS_QUIET subvolume delete "$SNAPSHOT_PATH"
     trap_exit quiet "Delete btrfs snapshot ${SNAPSHOT_PATH@Q}"
 }
 
