@@ -74,7 +74,6 @@ Our custom state script `/etc/backup/paths.d/podman\x2dcontainers.json.state.sh`
 
 _podman_containers() {
     (
-        shopt -s nullglob
         [ ! -d /run/containers/ ] || cmd sudo -i -- podman ps --format=json | jq -c '{"root": .}'
         for PODMAN_RUN_DIR in /run/user/*/containers/; do
             PODMAN_USER="$(id -un "$(basename "$(dirname "$PODMAN_RUN_DIR")")")"
