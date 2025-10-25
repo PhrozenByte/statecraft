@@ -1,0 +1,301 @@
+#!/bin/bash
+# StateCraft
+# A CLI tool to create complex directory structures via scripts on Linux.
+#
+# StateCraft is a CLI tool for creating Linux directory trees via scripts.
+# It supports mounting snapshots, creating files, archives, and more.
+# Designed for admins seeking flexible, scriptable backup setups.
+#
+# Copyright (C) 2025  Daniel Rudolf <https://www.daniel-rudolf.de>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License only.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# License: GNU General Public License <https://opensource.org/license/gpl-3-0>
+# SPDX-License-Identifier: GPL-3.0-only
+
+set -eu -o pipefail
+shopt -s nullglob
+export LC_ALL=C.UTF-8
+
+declare -r VERSION="0.1"
+declare -r BUILD="20251023"
+
+declare -r APP_NAME="$(basename "${BASH_SOURCE[0]}")"
+declare -r LIB_DIR="$(realpath "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/statecraft/" 2> /dev/null ||:)"
+
+XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}"
+[ -n "$XDG_RUNTIME_DIR" ] || { [ "$UID" == 0 ] && XDG_RUNTIME_DIR="/run" || XDG_RUNTIME_DIR="/run/user/$UID"; }
+declare -r XDG_RUNTIME_DIR
+
+# check environment
+[ -n "$LIB_DIR" ] || { echo "Failed to discover StateCraft's lib dir" >&2; exit 1; }
+[ -x "$(type -p od)" ] || { echo "Missing script dependency: od" >&2; exit 1; }
+[ -x "$(type -p awk)" ] || { echo "Missing script dependency: awk" >&2; exit 1; }
+[ -x "$(type -p mount)" ] || { echo "Missing script dependency: mount" >&2; exit 1; }
+[ -x "$(type -p umount)" ] || { echo "Missing script dependency: umount" >&2; exit 1; }
+[ -x "$(type -p mountpoint)" ] || { echo "Missing script dependency: mountpoint" >&2; exit 1; }
+
+SELINUX=
+! selinuxenabled 2> /dev/null || SELINUX=y
+declare -r SELINUX
+
+# functions
+print_usage() {
+    echo "Usage:"
+    echo "    $APP_NAME [-q|-v] [-p SCRIPTS_DIR] [-t TARGET_DIR] COMMAND [ARG]..."
+    echo "    $APP_NAME -e ABSOLUTE_PATH"
+    echo "    $APP_NAME -u ESCAPED_PATH"
+}
+
+source "$LIB_DIR/include/utils.sh"
+source "$LIB_DIR/include/paths.sh"
+source "$LIB_DIR/include/mounts.sh"
+
+# setup unix signal handling and exit traps
+source "$LIB_DIR/include/traps.sh"
+
+# read parameters
+QUIET=
+VERBOSE=
+
+SCRIPTS_DIR=
+TARGET_DIR=
+COMMAND=()
+
+ESCAPE_PATH=
+ESCAPE=
+
+while [ $# -gt 0 ]; do
+    if [[ "$1" =~ ^-[a-zA-Z0-9]{2,}$ ]]; then
+        set -- $(echo "${1:1}" | sed 's/./-& /g') "${@:2}"
+        continue
+    elif [[ "$1" =~ ^(--[a-zA-Z0-9_-]+)=(.*)$ ]]; then
+        set -- "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${@:2}"
+        continue
+    fi
+
+    if [ "$1" == "--help" ]; then
+        print_usage
+        echo
+        echo "StateCraft is a CLI tool for creating Linux directory trees via scripts."
+        echo "It supports mounting snapshots, creating files, archives, and more."
+        echo "Designed for admins seeking flexible, scriptable backup setups."
+        echo
+        echo "Arguments:"
+        echo "  COMMAND [ARG]...  run \`COMMAND [ARG]...\` within TARGET_DIR"
+        echo
+        echo "Application options:"
+        echo "  -p, --paths=SCRIPTS_DIR  run state scripts from the given 'paths.d' directory"
+        echo "  -t, --target=TARGET_DIR  create directory structure below the given path"
+        echo "  -q, --quiet              suppress StateCraft's output (doesn't affect COMMAND)"
+        echo "  -v, --verbose            explain what is being done"
+        echo
+        echo "Path escaping options:"
+        echo "  -e, --escape=ABSOLUTE_PATH   escape absolute path to be used by state scripts"
+        echo "  -u, --unescape=ESCAPED_PATH  unescape and print escaped path"
+        echo
+        echo "Help options:"
+        echo "      --help     display this help and exit"
+        echo "      --version  output version information and exit"
+        echo
+        echo "Visit us on GitHub: <https://github.com/PhrozenByte/statecraft>"
+        echo "Made with ♥ by Daniel Rudolf <https://www.daniel-rudolf.de/>"
+        exit 0
+    elif [ "$1" == "--version" ]; then
+        echo "statecraft $VERSION ($BUILD)"
+        echo "Copyright (C) 2025  Daniel Rudolf <https://www.daniel-rudolf.de/>"
+        echo
+        echo "This program is free software: you can redistribute it and/or modify"
+        echo "it under the terms of the GNU General Public License as published by"
+        echo "the Free Software Foundation, version 3 of the License only."
+        echo
+        echo "This program is distributed in the hope that it will be useful,"
+        echo "but WITHOUT ANY WARRANTY; without even the implied warranty of"
+        echo "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the"
+        echo "GNU General Public License for more details."
+        echo
+        echo "You should have received a copy of the GNU General Public License"
+        echo "along with this program.  If not, see <https://www.gnu.org/licenses/>."
+        echo
+        echo "Visit us on GitHub: <https://github.com/PhrozenByte/statecraft>"
+        echo "Made with ♥ by Daniel Rudolf <https://www.daniel-rudolf.de/>"
+        exit 0
+    elif [ "$1" == "-q" ] || [ "$1" == "--quiet" ]; then
+        QUIET=y
+        shift
+    elif [ "$1" == "-v" ] || [ "$1" == "--verbose" ]; then
+        VERBOSE=y
+        shift
+    elif [ "$1" == "-p" ] || [ "$1" == "--paths" ]; then
+        [ $# -ge 2 ] || { echo "Missing required argument for option ${1@Q}: SCRIPTS_DIR" >&2; exit 1; }
+        SCRIPTS_DIR="$2"
+        shift 2
+    elif [ "$1" == "-t" ] || [ "$1" == "--target" ]; then
+        [ $# -ge 2 ] || { echo "Missing required argument for option ${1@Q}: TARGET_DIR" >&2; exit 1; }
+        TARGET_DIR="$2"
+        shift 2
+    elif [ "$1" == "-e" ] || [ "$1" == "--escape" ]; then
+        [ $# -ge 2 ] || { echo "Missing required argument for option ${1@Q}: ABSOLUTE_PATH" >&2; exit 1; }
+        ESCAPE_PATH="$2"
+        ESCAPE=e
+        shift 2
+    elif [ "$1" == "-u" ] || [ "$1" == "--unescape" ]; then
+        [ $# -ge 2 ] || { echo "Missing required argument for option ${1@Q}: ESCAPED_PATH" >&2; exit 1; }
+        ESCAPE_PATH="$2"
+        ESCAPE=u
+        shift 2
+    else
+        [ "$1" != "--" ] || shift
+        COMMAND=( "$@" )
+        set --
+    fi
+done
+
+# escape/unescape paths
+if [ "$ESCAPE" == "e" ]; then
+    escape_path "$ESCAPE_PATH"
+    exit $?
+elif [ "$ESCAPE" == "u" ]; then
+    unescape_path "$ESCAPE_PATH"
+    exit $?
+fi
+
+unset ESCAPE_PATH ESCAPE
+
+# check parameters
+if [ "${#COMMAND[@]}" -eq 0 ]; then
+    print_usage >&2
+    exit 1
+elif [ ! -x "$(type -p "${COMMAND[0]}")" ]; then
+    echo "Invalid command ${COMMAND[0]@Q}: Command not found or not executable" >&2
+    exit 127
+fi
+
+if [ -n "$TARGET_DIR" ]; then
+    [ "$TARGET_DIR" != "/" ] || { echo "Invalid target '/'" >&2; exit 1; }
+
+    TARGET_DIR="${TARGET_DIR%/}"
+    ! [[ "$TARGET_DIR" =~ ^\.(/|$) ]] || TARGET_DIR="${TARGET_DIR:2}"
+    [ "${TARGET_DIR:0:1}" == "/" ] || TARGET_DIR="$PWD/$TARGET_DIR"
+
+    check_path "$TARGET_DIR" "Invalid target" -edwx
+fi
+
+if [ -n "$SCRIPTS_DIR" ]; then
+    [ "$SCRIPTS_DIR" != "/" ] || { echo "Invalid state script directory '/'" >&2; exit 1; }
+
+    SCRIPTS_DIR="${SCRIPTS_DIR%/}"
+    ! [[ "$SCRIPTS_DIR" =~ ^\.(/|$) ]] || SCRIPTS_DIR="${SCRIPTS_DIR:2}"
+    [ "${SCRIPTS_DIR:0:1}" == "/" ] || SCRIPTS_DIR="$PWD/$SCRIPTS_DIR"
+else
+    SCRIPTS_DIR="$LIB_DIR/paths.d"
+fi
+
+check_path "$SCRIPTS_DIR" "Invalid state script directory" -edrx
+
+# create random runtime directory
+RUN_DIR="$XDG_RUNTIME_DIR/statecraft"
+[ -e "$RUN_DIR" ] || cmd mkdir -m 0700 "$RUN_DIR"
+check_path "$RUN_DIR" "Invalid runtime directory" -dwx
+
+RUN_ID="$(get_random 10)"
+while [ -e "$RUN_DIR/$RUN_ID" ]; do
+    RUN_ID="$(get_random 10)"
+done
+
+RUN_DIR="$RUN_DIR/$RUN_ID"
+cmd mkdir -m 0700 "$RUN_DIR"
+trap_exit rmdir "$RUN_DIR"
+
+declare -r RUN_DIR RUN_ID
+
+# create base target dir, if necessary
+if [ -z "$TARGET_DIR" ]; then
+    TARGET_DIR="${RUN_DIR}_mount"
+
+    cmd mkdir -m 0700 "$TARGET_DIR"
+    trap_exit rmdir "$TARGET_DIR"
+fi
+
+# discover state scripts
+__get_paths() {
+    verbose + find "$SCRIPTS_DIR/" -name "*.state.sh"
+
+    local PATHS=()
+    local SCRIPT= ID= DIR=
+    for SCRIPT in "$SCRIPTS_DIR/"*".state.sh"; do
+        ID="$(basename "$SCRIPT" ".state.sh")"
+        [[ "$ID" =~ ^([a-zA-Z0-9:._-]|\\x[0-9a-f]{2})+$ ]] \
+            || { echo "Invalid path ${ID@Q}: Malformed state script filename" >&2; exit 1; }
+
+        DIR="$(unescape_path "$ID" 2> /dev/null ||:)"
+        [ -n "$DIR" ] || { echo "Invalid path ${ID@Q}:" \
+            "State script filename encodes no valid path" >&2; return 1; }
+
+        check_path "$SCRIPT" "Invalid path ${ID@Q}: Invalid state script" -efr
+
+        PATHS+=( "$ID" )
+    done
+
+    [ "${#PATHS[@]}" -eq 0 ] \
+        || printf '%s\n' "${PATHS[@]}" | sort
+}
+
+PATHS=()
+readarray -t PATHS < <(__get_paths)
+declare -r PATHS
+
+# run state scripts
+__log_path_info() {
+    local ID="$1"
+
+    local SCRIPT="$SCRIPTS_DIR/$ID.state.sh"
+    local SCRIPT_DESC="custom state script"
+    [ ! -h "$SCRIPT" ] \
+        || [ "$(dirname "$(realpath "$SCRIPT")")" != "$(realpath "$LIB_DIR/state-scripts")" ] \
+        || SCRIPT_DESC="built-in '$(basename "$(realpath "$SCRIPT")")' script"
+
+    local DIR="$(unescape_path "$ID")"
+    echo "Creating ${DIR@Q} with $SCRIPT_DESC"
+}
+
+declare -r QUIET VERBOSE SCRIPTS_DIR TARGET_DIR COMMAND
+
+quiet "Create ${#PATHS[@]} path(s) at ${TARGET_DIR@Q}"
+for ID in "${PATHS[@]}"; do
+    [ -n "$QUIET" ] || __log_path_info "$ID"
+
+    verbose + "source $(quote "$SCRIPTS_DIR/$ID.state.sh")"
+    source "$SCRIPTS_DIR/$ID.state.sh"
+
+    [ "$(type -t setup_path)" == "function" ] || { echo "Invalid path ${ID@Q}:" \
+        "Invalid state script not declaring the 'setup_path' function" >&2; exit 1; }
+
+    cmd setup_path "$ID"
+
+    unset -f setup_path
+done
+
+# run command
+quiet "Run \`$(quote "${COMMAND[0]}")\` within ${TARGET_DIR@Q}"
+
+__RUNNING=y
+__EXIT=0
+(
+    cmd cd "$TARGET_DIR"
+    verbose + "$(type -p "${COMMAND[0]}")" "${COMMAND[@]:1}"
+    exec "$(type -p "${COMMAND[0]}")" "${COMMAND[@]:1}"
+) || { __EXIT=$?; true; }
+__RUNNING=
+
+exit $__EXIT
