@@ -27,8 +27,8 @@ set -eu -o pipefail
 shopt -s nullglob
 export LC_ALL=C.UTF-8
 
-declare -r VERSION="0.1"
-declare -r BUILD="20251023"
+declare -r VERSION="1.0.0"
+declare -r BUILD="20251025"
 
 declare -r APP_NAME="$(basename "${BASH_SOURCE[0]}")"
 declare -r LIB_DIR="$(realpath "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/statecraft/" 2> /dev/null ||:)"
