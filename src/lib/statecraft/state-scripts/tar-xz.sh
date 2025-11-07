@@ -25,29 +25,6 @@
 [ -x "$(type -p tar)" ] || { echo "Missing dependency for 'tar-xz.sh' state script: tar" >&2; exit 1; }
 [ -x "$(type -p xz)" ] || { echo "Missing dependency for 'tar-xz.sh' state script: xz" >&2; exit 1; }
 
-_tar_mountpoint() {
-    local ID="$1"
-    local MOUNT="$(unescape_path "$ID")"
-
-    check_path "$MOUNT" "Invalid path ${ID@Q}: Invalid bind mount source path" -edrx
-
-    echo "$MOUNT"
-}
-
-_bind_mount() {
-    local MOUNT="$1"
-
-    quiet "Bind mount ${MOUNT@Q}"
-    cmd mount -o bind,ro "$MOUNT" "$TARGET_DIR$MOUNT"
-}
-
-_bind_umount() {
-    local MOUNT="$1"
-
-    trap_exit umount "$TARGET_DIR$MOUNT"
-    trap_exit quiet "Unmount ${MOUNT@Q}"
-}
-
 _setup_tar_archive() {
     local ID="$1"
 

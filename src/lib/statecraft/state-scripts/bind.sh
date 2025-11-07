@@ -22,15 +22,6 @@
 # License: GNU General Public License <https://opensource.org/license/gpl-3-0>
 # SPDX-License-Identifier: GPL-3.0-only
 
-_bind_mountpoint() {
-    local ID="$1"
-    local MOUNT="$(unescape_path "$ID")"
-
-    check_path "$MOUNT" "Invalid path ${ID@Q}: Invalid bind mount source path" -edrx
-
-    echo "$MOUNT"
-}
-
 _bind_mount() {
     local MOUNT="$1"
 
@@ -48,8 +39,8 @@ _bind_umount() {
 _setup_bind_mount() {
     local ID="$1"
 
-    local MOUNT="$(_bind_mountpoint "$ID")"
-    [ -n "$MOUNT" ]
+    local MOUNT="$(unescape_path "$ID")"
+    check_path "$MOUNT" "Invalid path ${ID@Q}: Invalid bind mount source path" -edrx
 
     # create target mountpoint, if necessary
     mkmountpoint "$TARGET_DIR" "$ID"
