@@ -50,7 +50,7 @@ install:
 	$(INSTALL) -d "$(DESTDIR)$(libdir)"
 	(cd "$(srcdir)/src/lib/statecraft"; find -type d -print0) | xargs -t -0 -I{} \
 		$(INSTALL) -d "$(DESTDIR)$(libdir)/{}"
-	(cd "$(srcdir)/src/lib/statecraft"; find -type f -print0) | xargs -t -0 -I{} \
+	(cd "$(srcdir)/src/lib/statecraft"; find -type f -not -name '.gitignore' -print0) | xargs -t -0 -I{} \
 		$(INSTALL_DATA) "$(srcdir)/src/lib/statecraft/{}" "$(DESTDIR)$(libdir)/{}"
 	
 	$(INSTALL) -d "$(DESTDIR)$(docdir)" "$(DESTDIR)$(licensedir)"
