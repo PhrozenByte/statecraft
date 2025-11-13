@@ -17,8 +17,10 @@ Made with ❤️ by [Daniel Rudolf](https://www.daniel-rudolf.de) ([@PhrozenByte
 
 * 🔍 [About](#-about)
 * 📥 [Install](#-install)
+  * 📦 [Distribution packages](#-distribution-packages)
+  * 🧩 [From sources](#-from-sources)
 * 🚀 [Usage](#-usage)
-  * 🧩 [Running StateCraft](#-running-statecraft)
+  * ⚡ [Running StateCraft](#-running-statecraft)
   * 🔐 [Encoding paths in state scripts](#-encoding-paths-in-state-scripts)
   * ⚙️ [Custom state scripts](#%EF%B8%8F-custom-state-scripts)
   * 🌍 [Real-world example](#-real-world-example)
@@ -47,9 +49,17 @@ StateCraft is free and open-source software, released under the terms of the [GN
 📥 Install
 --------
 
-StateCraft was written for [GNU Bash](https://www.gnu.org/software/bash/bash.html). The main program depends solely on common Linux utilities (tested with [BusyBox](https://busybox.net/) (just its utilities, not `ash`), and [GNU coreutils](https://www.gnu.org/software/coreutils/) + [`util-linux`](https://en.wikipedia.org/wiki/Util-linux)). However, state scripts may add additional runtime dependencies: `btrfs.sh` depends on `btrfs-progs` (the Btrfs userspace tools), `lvm.sh` depends on `lvm2` (the LVM userspace toolset), `tar-xz.sh` depends on `tar` and `xz`, both `disk-info.sh` and `fcos-release.sh` depend on [`jq`](https://jqlang.org/), `disk-info.sh` requires `lsblk` and `findmnt` from `util-linux`, and `fcos-release.sh` only runs on Fedora CoreOS.
+StateCraft was written for [GNU Bash](https://www.gnu.org/software/bash/bash.html). The main program depends solely on common Linux utilities (tested with [BusyBox](https://busybox.net/) (just its utilities, not `ash`), and [GNU coreutils](https://www.gnu.org/software/coreutils/) + [`util-linux`](https://en.wikipedia.org/wiki/Util-linux)).
 
-To install StateCraft, you just need to obtain the source code (by either cloning the Git repository or by downloading one of StateCraft's source archives; see [GitHub's releases page](https://github.com/PhrozenByte/statecraft/releases)), and run [`make`](https://en.wikipedia.org/wiki/Make_%28software%29) (e.g., [GNU Make](https://www.gnu.org/software/make/make.html), but it should work with any `make` implementation):
+State scripts may add additional runtime dependencies: `btrfs.sh` depends on `btrfs-progs` (the Btrfs userspace tools), `lvm.sh` depends on `lvm2` (the LVM userspace toolset), `tar-xz.sh` depends on `tar` and `xz`, both `disk-info.sh` and `fcos-release.sh` depend on [`jq`](https://jqlang.org/), `disk-info.sh` requires `lsblk` and `findmnt` from `util-linux`, and `fcos-release.sh` only runs on Fedora CoreOS.
+
+### 📦 Distribution packages
+
+If you're running [Arch Linux](https://archlinux.org/), you can install the [`statecraft` AUR package](https://aur.archlinux.org/packages/statecraft) to install StateCraft.
+
+### 🧩 From sources
+
+To install StateCraft from sources, you just need to obtain the source code (by either cloning the Git repository or by downloading one of StateCraft's source archives; see [GitHub's releases page](https://github.com/PhrozenByte/statecraft/releases)), and run [`make`](https://en.wikipedia.org/wiki/Make_%28software%29) (e.g., [GNU Make](https://www.gnu.org/software/make/make.html), but it should work with any `make` implementation):
 
 ```console
 $ git clone https://github.com/PhrozenByte/statecraft.git
@@ -76,7 +86,7 @@ Usage:
     statecraft -u ESCAPED_PATH
 ```
 
-### 🧩 Running StateCraft
+### ⚡ Running StateCraft
 
 StateCraft's real magic happens within the `SCRIPTS_DIR` directory: With the `-p SCRIPTS_DIR` CLI option (or `--paths=SCRIPTS_DIR`), you tell StateCraft what to create and mount. You do this by either creating custom state scripts declaring the `setup_path` function (written in GNU Bash, details below), or by creating symbolic links to built-in state scripts like `bind.sh` or `disk-info.sh`. The state script's filename encodes the path you want StateCraft to create (whether StateCraft creates a file, directory, or mount point there depends on the state script), followed by `.state.sh`. For example, if you want to create a replica of `/home/daniel/Open Source/statecraft`, you first need to encode the path with `statecraft -e "/home/daniel/Open Source/statecraft"` (which returns `home-daniel-Open\x20Source-statecraft`), and then create a symbolic link `home-daniel-Open\x20Source-statecraft.state.sh` pointing to `/usr/local/lib/statecraft/state-scripts/bind.sh`. This allows you to run `statecraft` with the command you wish to run, e.g., [`tree -p`](https://en.wikipedia.org/wiki/Tree_%28command%29) (matching the `COMMAND [ARG]...` CLI argument). Since mounting usually requires root permissions, we run StateCraft with `sudo`.
 
