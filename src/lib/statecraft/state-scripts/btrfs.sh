@@ -67,8 +67,7 @@ _btrfs_mountpoint() {
 _btrfs_snapshot_create() {
     local SUBVOLUME_PATH="$1"
     local SNAPSHOT_PATH="$2"
-    local BTRFS_QUIET=
-    [ -n "$VERBOSE" ] || BTRFS_QUIET="-q"
+    local BTRFS_QUIET=; [ -n "$VERBOSE" ] || BTRFS_QUIET="-q"
 
     quiet "Create readonly btrfs snapshot of ${SUBVOLUME_PATH@Q} in ${SNAPSHOT_PATH@Q}"
     cmd btrfs $BTRFS_QUIET subvolume snapshot -r "$SUBVOLUME_PATH" "$SNAPSHOT_PATH"
@@ -76,11 +75,28 @@ _btrfs_snapshot_create() {
 
 _btrfs_snapshot_delete() {
     local SNAPSHOT_PATH="$1"
-    local BTRFS_QUIET=
-    [ -n "$VERBOSE" ] || BTRFS_QUIET="-q"
+    local BTRFS_QUIET=; [ -n "$VERBOSE" ] || BTRFS_QUIET="-q"
 
     trap_exit btrfs $BTRFS_QUIET subvolume delete "$SNAPSHOT_PATH"
     trap_exit quiet "Delete btrfs snapshot ${SNAPSHOT_PATH@Q}"
+}
+
+_btrfs_snapshot_mount() {
+    local MOUNT="$1"
+    local SNAPSHOT="$2"
+    local SNAPSHOT_PATH="$3"
+    local DEVICE="$4"
+    local DEVICES=( "${@:5}" )
+
+    quiet "Mount ${SNAPSHOT_PATH@Q} to ${MOUNT@Q}"
+    _btrfs_mount -o ro "$TARGET_DIR$MOUNT" "$SNAPSHOT" "$DEVICE" "${DEVICES[@]}"
+}
+
+_btrfs_snapshot_umount() {
+    local MOUNT="$1"
+
+    trap_exit umount "$TARGET_DIR$MOUNT"
+    trap_exit quiet "Unmount ${MOUNT@Q}"
 }
 
 _btrfs_mount() {
@@ -202,11 +218,8 @@ _setup_btrfs_mount() {
     _btrfs_snapshot_delete "$SNAPSHOT_PATH"
 
     # mount snapshot
-    quiet "Mount ${SNAPSHOT_PATH@Q} to ${MOUNT@Q}"
-    _btrfs_mount -o ro "$TARGET_DIR$MOUNT" "$SNAPSHOT" "$DEVICE" "${DEVICES[@]}"
-
-    trap_exit umount "$TARGET_DIR$MOUNT"
-    trap_exit quiet "Unmount ${MOUNT@Q}"
+    _btrfs_snapshot_mount "$MOUNT" "$SNAPSHOT" "$SNAPSHOT_PATH" "$DEVICE" "${DEVICES[@]}"
+    _btrfs_snapshot_umount "$MOUNT"
     return 0
 }
 
