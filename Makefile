@@ -33,7 +33,7 @@ prefix ?= /usr/local
 exec_prefix ?= $(prefix)
 
 bindir ?= $(exec_prefix)/bin
-libdir ?= $(exec_prefix)/lib/statecraft
+libdir ?= $(exec_prefix)/lib
 datarootdir ?= $(prefix)/share
 docdir ?= $(datarootdir)/doc/statecraft
 licensedir ?= $(datarootdir)/licenses/statecraft
@@ -47,11 +47,11 @@ install:
 	$(INSTALL) -d "$(DESTDIR)$(bindir)"
 	$(INSTALL_PROGRAM) -D "$(srcdir)/src/bin/statecraft" "$(DESTDIR)$(bindir)/statecraft"
 	
-	$(INSTALL) -d "$(DESTDIR)$(libdir)"
+	$(INSTALL) -d "$(DESTDIR)$(libdir)/statecraft"
 	(cd "$(srcdir)/src/lib/statecraft"; find -type d -print0) | xargs -t -0 -I{} \
-		$(INSTALL) -d "$(DESTDIR)$(libdir)/{}"
+		$(INSTALL) -d "$(DESTDIR)$(libdir)/statecraft/{}"
 	(cd "$(srcdir)/src/lib/statecraft"; find -type f -not -name '.gitignore' -print0) | xargs -t -0 -I{} \
-		$(INSTALL_DATA) "$(srcdir)/src/lib/statecraft/{}" "$(DESTDIR)$(libdir)/{}"
+		$(INSTALL_DATA) "$(srcdir)/src/lib/statecraft/{}" "$(DESTDIR)$(libdir)/statecraft/{}"
 	
 	$(INSTALL) -d "$(DESTDIR)$(docdir)" "$(DESTDIR)$(licensedir)"
 	$(INSTALL_DATA) -D "$(srcdir)/README.md" "$(DESTDIR)$(docdir)/README.md"
@@ -59,7 +59,7 @@ install:
 
 uninstall:
 	rm -f "$(DESTDIR)$(bindir)/statecraft"
-	rm -rf "$(DESTDIR)$(libdir)"
+	rm -rf "$(DESTDIR)$(libdir)/statecraft"
 	rm -rf "$(DESTDIR)$(docdir)" "$(DESTDIR)$(licensedir)"
 
 clean:
