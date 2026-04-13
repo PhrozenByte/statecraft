@@ -55,6 +55,7 @@ install:
 	
 	$(INSTALL) -d "$(DESTDIR)$(docdir)" "$(DESTDIR)$(licensedir)"
 	$(INSTALL_DATA) -D "$(srcdir)/README.md" "$(DESTDIR)$(docdir)/README.md"
+	$(INSTALL_DATA) -D "$(srcdir)/USAGE_EXAMPLE.md" "$(DESTDIR)$(docdir)/USAGE_EXAMPLE.md"
 	$(INSTALL_DATA) -D "$(srcdir)/LICENSE" "$(DESTDIR)$(licensedir)/LICENSE"
 
 uninstall:
