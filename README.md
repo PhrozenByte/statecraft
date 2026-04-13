@@ -49,7 +49,7 @@ StateCraft is free and open-source software, released under the terms of the [GN
 📥 Install
 --------
 
-StateCraft was written for [GNU Bash](https://www.gnu.org/software/bash/bash.html). The main program depends solely on common Linux utilities (tested with [BusyBox](https://busybox.net/) (just its utilities, not `ash`), and [GNU coreutils](https://www.gnu.org/software/coreutils/) + [`util-linux`](https://en.wikipedia.org/wiki/Util-linux)).
+StateCraft was written for [GNU Bash](https://www.gnu.org/software/bash/bash.html). The main program depends solely on common Linux utilities (tested with [BusyBox](https://busybox.net/) (just its utilities, not `ash`), and [GNU coreutils](https://www.gnu.org/software/coreutils/) + [GNU findutils](https://www.gnu.org/software/findutils/) + [`util-linux`](https://en.wikipedia.org/wiki/Util-linux)).
 
 State scripts may add additional runtime dependencies: `btrfs.sh` depends on `btrfs-progs` (the Btrfs userspace tools), `lvm.sh` depends on `lvm2` (the LVM userspace toolset), `tar-xz.sh` depends on `tar` and `xz`, both `disk-info.sh` and `fcos-release.sh` depend on [`jq`](https://jqlang.org/), `disk-info.sh` requires `lsblk` and `findmnt` from `util-linux`, and `fcos-release.sh` only runs on Fedora CoreOS.
 
