@@ -26,7 +26,7 @@ escape_path() {
     local INPUT="$1"
 
     # `systemd-escape` also allows for limited normalization as long as the path is still unambiguous
-    local NORMALIZED="$(sed -e '/^[^/]/q;s#///*#/#g;s#/\.\(/\.\)*\(/\|$\)#/#g;s#\(.\)/$#\1#g' <<< "$INPUT")"
+    local NORMALIZED="$(sed -e '/^[^/]/q;s#///*#/#g;s#/\.\(/\.\)*\(/\|$\)#/#g;s#\(.\)/$#\1#g' <<<"$INPUT")"
 
     # neither empty or relative paths, nor paths with ../ are allowed
     if [ -z "$NORMALIZED" ] || [ "${NORMALIZED:0:1}" != "/" ] || [[ "$NORMALIZED" =~ /\.\.(/|$) ]]; then
@@ -39,7 +39,7 @@ escape_path() {
 
     # escape path after removing the leading slash
     local OUTPUT= CHAR= POS=0
-    while IFS= read -n 1 -r CHAR; do
+    while IFS= read -u 9 -n 1 -r CHAR; do
         if [ "$CHAR" == "/" ]; then
             # replace slashes by '-'
             OUTPUT+="-"
@@ -53,7 +53,7 @@ escape_path() {
             OUTPUT+="$(printf '%s' "$CHAR" | od -v -An -tx1 | sed -e 's# #\\x#g')"
         fi
         ((++POS))
-    done < <(printf '%s' "${NORMALIZED#/}")
+    done 9< <(printf '%s' "${NORMALIZED#/}")
 
     # print result
     echo "$OUTPUT"
@@ -78,7 +78,7 @@ unescape_path() {
 
     # replace '-' by slashes and add a leading slash (all escaped paths are absolute)
     # printf additionally replaces escaped characters (e.g. '\x20' gets ' ')
-    printf "/$(sed -e 's#-#/#g' <<< "$INPUT")\n"
+    printf "/$(sed -e 's#-#/#g' <<<"$INPUT")\n"
 }
 
 unescape_source_path() {

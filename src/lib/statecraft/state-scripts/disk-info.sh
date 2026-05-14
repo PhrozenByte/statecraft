@@ -27,7 +27,7 @@
 [ -x "$(type -p findmnt)" ] || { echo "Missing dependency for 'disk-info.sh' state script: findmnt" >&2; exit 1; }
 
 _disk_info() {
-    local DISKS=()
+    local -a DISKS=()
 
     local ID= MOUNT= DISK= DISK_META= FS_META= MOUNT_META=
     for ID in "${PATHS[@]}"; do
@@ -37,18 +37,18 @@ _disk_info() {
         DISK="$(mountinfo "$MOUNT" source ||:)"
         [ -n "$DISK" ] || continue
 
-        DISK_META="$(cmd lsblk --json --bytes --nodeps -o PATH,SIZE,PARTUUID,PARTTYPE,PARTLABEL "$DISK")"
-        FS_META="$(cmd findmnt --json --bytes -o FSTYPE,SIZE,USED,UUID,LABEL "$DISK")"
-        MOUNT_META="$(cmd findmnt --json -o TARGET,OPTIONS "$MOUNT")"
+        DISK_META="$(cmd lsblk --json --bytes --nodeps -o PATH,SIZE,PARTUUID,PARTTYPE,PARTLABEL "$DISK" ||:)"
+        FS_META="$(cmd findmnt --json --bytes -o FSTYPE,SIZE,USED,UUID,LABEL "$DISK" ||:)"
+        MOUNT_META="$(cmd findmnt --json -o TARGET,OPTIONS "$MOUNT" ||:)"
 
         DISKS+=( "$(jq -ne \
-            --argjson partition "$(jq '.blockdevices[0]' <<< "$DISK_META")" \
-            --argjson filesystem "$(jq '.filesystems[0]' <<< "$FS_META")" \
-            --argjson mountpoint "$(jq '.filesystems[0]' <<< "$MOUNT_META")" \
+            --argjson partition "$(jq '.blockdevices[0]' <<<"${DISK_META:-"{}"}")" \
+            --argjson filesystem "$(jq '.filesystems[0]' <<<"${FS_META:-"{}"}")" \
+            --argjson mountpoint "$(jq '.filesystems[0]' <<<"${MOUNT_META:-"{}"}")" \
             '$ARGS.named')" )
     done
 
-    jq -s <<< "${DISKS[@]}"
+    jq -s <<<"${DISKS[@]}"
 }
 
 _setup_disk_info_file() {
@@ -60,7 +60,7 @@ _setup_disk_info_file() {
 
     quiet "Write disk information to ${FILENAME@Q}"
     mkmountpoint "$TARGET_DIR" "$ID" "$(dirname "$FILENAME")"
-    _disk_info > "$TARGET_DIR$FILENAME"
+    _disk_info >"$TARGET_DIR$FILENAME"
 
     # delete status file
     trap_exit rm "$TARGET_DIR$FILENAME"

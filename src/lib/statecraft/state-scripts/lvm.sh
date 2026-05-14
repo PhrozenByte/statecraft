@@ -26,16 +26,16 @@
 [ -x "$(type -p lvcreate)" ] || { echo "Missing dependency for 'lvm.sh' state script: lvcreate" >&2; exit 1; }
 
 _lvm_info() {
-    local DEVICE="$(mountinfo "$1" "source" | tail -n1)"
+    local DEVICE="$(mountinfo "$1" "source" | tail -n1 ||:)"
     [ -n "$DEVICE" ] || return 1
 
-    local STATUS="$(lvs --noheadings --separator ' ' -o vg_name,lv_name,lv_path "$DEVICE" 2> /dev/null)"
-    [ -n "$STATUS" ] && sed -e 's/^  *//g;s/  *$//g' <<< "$STATUS"
+    local STATUS="$(lvs --noheadings --separator ' ' -o vg_name,lv_name,lv_path "$DEVICE" 2>/dev/null ||:)"
+    [ -n "$STATUS" ] && sed -e 's/^  *//g;s/  *$//g' <<<"$STATUS"
 }
 
 _lvm_device() {
-    local VOLUME="$(lvs --noheadings --separator ' ' -o lv_path "$1" 2> /dev/null)"
-    [ -n "$VOLUME" ] && sed -e 's/^  *//g;s/  *$//g' <<< "$VOLUME"
+    local VOLUME="$(lvs --noheadings --separator ' ' -o lv_path "$1" 2>/dev/null ||:)"
+    [ -n "$VOLUME" ] && sed -e 's/^  *//g;s/  *$//g' <<<"$VOLUME"
 }
 
 _lvm_mountpoint() {
@@ -90,18 +90,20 @@ _setup_lvm_mount() {
     local ID="$1"
 
     # get source mountpoint
-    local MOUNT="$(_lvm_mountpoint "$ID")"
+    local MOUNT="$(_lvm_mountpoint "$ID" ||:)"
     [ -n "$MOUNT" ]
 
     # get LVM volume info
     local LVM_VG= LVM_LV= VOLUME=
-    IFS=' ' read -r LVM_VG LVM_LV VOLUME < <(_lvm_info "$MOUNT")
+    IFS=' ' read -r LVM_VG LVM_LV VOLUME < <(_lvm_info "$MOUNT" ||:)
     [ -n "$VOLUME" ] && [ -n "$LVM_VG" ] && [ -n "$LVM_LV" ]
 
     # create LVM snapshot
     _lvm_snapshot_create "$VOLUME" "${LVM_LV}+snap_$RUN_ID"
 
-    local SNAPSHOT="$(_lvm_device "$LVM_VG/${LVM_LV}+snap_$RUN_ID")"
+    local SNAPSHOT="$(_lvm_device "$LVM_VG/${LVM_LV}+snap_$RUN_ID" ||:)"
+    [ -n "$SNAPSHOT" ]
+
     _lvm_snapshot_delete "$SNAPSHOT"
 
     # create target mountpoint, if necessary

@@ -37,7 +37,7 @@ verbose() {
         [ $# -eq 0 ] || { echo "$@" >&2; return 0; }
         cat >&2
     elif [ $# -eq 0 ]; then
-        cat > /dev/null
+        cat >/dev/null
     fi
 }
 
@@ -46,7 +46,7 @@ quiet() {
         [ $# -eq 0 ] || { echo "$@"; return 0; }
         cat
     elif [ $# -eq 0 ]; then
-        cat > /dev/null
+        cat >/dev/null
     fi
 }
 
@@ -62,8 +62,8 @@ check_path() {
 
     verbose + check_path "$FILE" "$@"
     while [ $# -gt 0 ]; do
-        ! [[ "$1" =~ ^-[a-z]{2,}$ ]] || { set -- $(echo "${1:1}" | sed 's/./-& /g') "${@:2}"; continue; }
-        ! [[ "$1" =~ ^\+[a-z]{2,}$ ]] || { set -- $(echo "${1:1}" | sed 's/./+& /g') "${@:2}"; continue; }
+        ! [[ "$1" =~ ^-[a-z]{2,}$ ]] || { set -- $(sed 's/./-& /g' <<<"${1:1}") "${@:2}"; continue; }
+        ! [[ "$1" =~ ^\+[a-z]{2,}$ ]] || { set -- $(sed 's/./+& /g' <<<"${1:1}") "${@:2}"; continue; }
         case "$1" in
             "-e") [ -e "$FILE" ] || { echo "$INFO ${FILE@Q}: No such file or directory" >&2; return 1; } ;;
             "+e") [ ! -e "$FILE" ] || { echo "$INFO ${FILE@Q}: File or directory exists" >&2; return 1; } ;;
@@ -76,16 +76,16 @@ check_path() {
             "-r") [ -r "$FILE" ] || { echo "$INFO ${FILE@Q}: Permission denied (not readable)" >&2; return 1; } ;;
             "-w") [ -w "$FILE" ] || { echo "$INFO ${FILE@Q}: Permission denied (not writable)" >&2; return 1; } ;;
             "-x") [ -x "$FILE" ] || { echo "$INFO ${FILE@Q}: Permission denied (not executable)" >&2; return 1; } ;;
-            "-s") [ -z "$(find "$FILE" -maxdepth 0 -empty 2> /dev/null)" ] \
-                || { echo "$INFO ${FILE@Q}: File or directory is empty" >&2; return 1; } ;;
-            "+s") [ -n "$(find "$FILE" -maxdepth 0 -empty 2> /dev/null)" ] \
-                || { echo "$INFO ${FILE@Q}: File or directory is not empty" >&2; return 1; } ;;
-            *) echo "Invalid $INFO ${FILE@Q}" >&2; return 1 ;;
+            "-s") [ -z "$(find "$FILE" -maxdepth 0 -empty 2>/dev/null)" ] \
+                    || { echo "$INFO ${FILE@Q}: File or directory is empty" >&2; return 1; } ;;
+            "+s") [ -n "$(find "$FILE" -maxdepth 0 -empty 2>/dev/null)" ] \
+                    || { echo "$INFO ${FILE@Q}: File or directory is not empty" >&2; return 1; } ;;
+            *) echo "$INFO ${FILE@Q}" >&2; return 1 ;;
         esac
         shift
     done
 }
 
 get_random() {
-    tr -dc 'A-Za-z0-9' < /dev/urandom 2> /dev/null | head -c "$1" ||:
+    tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c "$1" ||:
 }

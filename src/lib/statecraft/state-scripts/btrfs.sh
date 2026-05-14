@@ -29,16 +29,16 @@ _is_btrfs_mount() {
 }
 
 _btrfs_subvolume() {
-    local STATUS="$(btrfs subvolume show "$1" 2> /dev/null)"
-    [ -n "$STATUS" ] && head -n1 - <<< "$STATUS"
+    local STATUS="$(btrfs subvolume show "$1" 2>/dev/null ||:)"
+    [ -n "$STATUS" ] && head -n1 - <<<"$STATUS"
 }
 
 _btrfs_sources() {
-    local STATUS="$(btrfs filesystem show "$1" 2> /dev/null)"
+    local STATUS="$(btrfs filesystem show "$1" 2>/dev/null ||:)"
     [ -n "$STATUS" ]
 
     local AWK_PROGRAM='$1 == "devid" { for (i=1; i<=NF; i++) { if ($i == "path") { print $(i+1) } } }'
-    local DEVICES="$(awk "$AWK_PROGRAM" <<< "$STATUS")"
+    local DEVICES="$(awk "$AWK_PROGRAM" <<<"$STATUS" ||:)"
     [ -n "$DEVICES" ] && echo "$DEVICES"
 }
 
@@ -100,7 +100,7 @@ _btrfs_snapshot_umount() {
 }
 
 _btrfs_mount() {
-    local MOUNT_OPTS=()
+    local -a MOUNT_OPTS=()
     while [ $# -ge 2 ]; do
         [ "$1" == "-o" ] \
             && { MOUNT_OPTS+=( "$2" ); shift 2; } \
@@ -128,17 +128,17 @@ _setup_btrfs_mount() {
     local ID="$1"
 
     # get source mountpoint
-    local MOUNT="$(_btrfs_mountpoint "$ID")"
+    local MOUNT="$(_btrfs_mountpoint "$ID" ||:)"
     [ -n "$MOUNT" ]
 
     # get source subvolume
-    local SUBVOLUME="$(_btrfs_subvolume "$MOUNT")"
+    local SUBVOLUME="$(_btrfs_subvolume "$MOUNT" ||:)"
     [ -n "$SUBVOLUME" ] || { echo "Invalid path ${ID@Q}:" \
         "Invalid btrfs subvolume ${MOUNT@Q}: Not a mount point of a btrfs subvolume" >&2; return 1; }
 
     # get backing devices
     # we strictly use the same backing devices and don't rely on btrfs' auto-detection
-    local DEVICES=(); readarray -t DEVICES < <(_btrfs_sources "$MOUNT")
+    local -a DEVICES=(); readarray -t DEVICES < <(_btrfs_sources "$MOUNT" ||:)
     [ "${#DEVICES[@]}" -gt 0 ] || { echo "Invalid path ${ID@Q}:" \
         "Invalid btrfs subvolume ${MOUNT@Q}: Unable to determine backing block devices" >&2; return 1; }
 

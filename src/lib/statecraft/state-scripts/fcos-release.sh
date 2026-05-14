@@ -30,8 +30,8 @@
     || { echo "Not running on Fedora CoreOS, thus failed to run 'fcos-release.sh' state script" >&2; exit 1; }
 
 _fcos_release_info() {
-    verbose + '< /etc/machine-id'
-    local MACHINE_ID="$(< /etc/machine-id)"
+    verbose + 'cat /etc/machine-id'
+    local MACHINE_ID="$(cat /etc/machine-id ||:)"
 
     verbose + '( source /etc/os-release; jq … )'
     local FCOS_RELEASE_JSON="$(
@@ -71,12 +71,12 @@ _fcos_release_info() {
             "requested-local-packages", "requested-local-fileoverride-packages",
             "requested-base-removals", "base-removals",
             "requested-base-local-replacements", "base-local-replacements",
-            "base-remote-replacements"})')"
+            "base-remote-replacements"})' ||:)"
 
     jq -n '$ARGS.named' \
         --arg "machine-id" "$MACHINE_ID" \
-        --argjson "fcos" "$FCOS_RELEASE_JSON" \
-        --argjson "rpm-ostree" "$RPM_OSTREE_JSON"
+        --argjson "fcos" "${FCOS_RELEASE_JSON:-"{}"}" \
+        --argjson "rpm-ostree" "${RPM_OSTREE_JSON:-"{}"}"
 }
 
 _setup_fcos_release_file() {
@@ -88,7 +88,7 @@ _setup_fcos_release_file() {
 
     quiet "Write Fedora CoreOS release information to ${FILENAME@Q}"
     mkmountpoint "$TARGET_DIR" "$ID" "$(dirname "$FILENAME")"
-    _fcos_release_info > "$TARGET_DIR$FILENAME"
+    _fcos_release_info >"$TARGET_DIR$FILENAME"
 
     # delete status file
     trap_exit rm "$TARGET_DIR$FILENAME"

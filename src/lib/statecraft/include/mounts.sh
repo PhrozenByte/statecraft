@@ -32,7 +32,7 @@ mountinfo() {
 
     is_mountpoint "$MOUNT"
 
-    MOUNT="$(realpath "$MOUNT" 2> /dev/null ||:)"
+    MOUNT="$(realpath "$MOUNT" 2>/dev/null ||:)"
     [ -n "$MOUNT" ]
 
     [ "$FIELD" != "target" ] || { echo "$MOUNT"; return 0; }
@@ -47,7 +47,7 @@ mountinfo() {
         *)         echo "Failed to read mount info of ${MOUNT@Q}: Unknown field ${FIELD@Q}" >&2; return 1 ;;
     esac
 
-    local RESULT="$(awk -v m="$MOUNT" "$PROG" /proc/self/mountinfo)"
+    local RESULT="$(awk -v m="$MOUNT" "$PROG" /proc/self/mountinfo ||:)"
     [ -n "$RESULT" ] && printf '%b\n' "$RESULT"
 }
 
@@ -72,7 +72,7 @@ mkmountpoint() {
         fi
 
         local SUBDIR= SUBDIR_ABS= SUBDIR_DST=
-        while IFS= read -u 3 -d '/' -r SUBDIR; do
+        while IFS= read -u 9 -d '/' -r SUBDIR; do
             SUBDIR_ABS+="/$SUBDIR"
             SUBDIR_DST="$BASE_DIR$SUBDIR_ABS"
 
@@ -95,7 +95,7 @@ mkmountpoint() {
             else
                 check_path "$SUBDIR_DST" "Invalid path ${ID@Q}: Unable to create ${MOUNT_TARGET@Q} below" -d
             fi
-        done 3< <(printf '%s' "${DIR#/}/")
+        done 9< <(printf '%s' "${DIR#/}/")
     else
         check_path "$BASE_DIR$DIR" "Invalid path ${ID@Q}: Unable to create ${MOUNT_TARGET@Q} at" -d
     fi
