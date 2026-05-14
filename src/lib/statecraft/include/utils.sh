@@ -61,6 +61,8 @@ check_path() {
     shift 2
 
     verbose + check_path "$FILE" "$@"
+
+    local OWNER= MODE=
     while [ $# -gt 0 ]; do
         ! [[ "$1" =~ ^-[a-z]{2,}$ ]] || { set -- $(sed 's/./-& /g' <<<"${1:1}") "${@:2}"; continue; }
         ! [[ "$1" =~ ^\+[a-z]{2,}$ ]] || { set -- $(sed 's/./+& /g' <<<"${1:1}") "${@:2}"; continue; }
@@ -80,6 +82,14 @@ check_path() {
                     || { echo "$INFO ${FILE@Q}: File or directory is empty" >&2; return 1; } ;;
             "+s") [ -n "$(find "$FILE" -maxdepth 0 -empty 2>/dev/null)" ] \
                     || { echo "$INFO ${FILE@Q}: File or directory is not empty" >&2; return 1; } ;;
+            "-t")
+                OWNER="$(stat -c '%u' -L "$FILE")"
+                [ "$OWNER" == "$UID" ] || [ "$OWNER" == "0" ] || { echo "$INFO ${FILE@Q}:" \
+                    "Permission are too open, must be owned by the running user or root" >&2; return 1; }
+                MODE="$(stat -c '%A' -L "$FILE")"
+                [ "${MODE:5:1}" != "w" ] && [ "${MODE:8:1}" != "w" ] || { echo "$INFO ${FILE@Q}:" \
+                    "Permission are too open, must neither be group nor world writable" >&2; return 1; }
+                ;;
             *) echo "$INFO ${FILE@Q}" >&2; return 1 ;;
         esac
         shift

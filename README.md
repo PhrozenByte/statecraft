@@ -103,14 +103,14 @@ Usage:
 
 StateCraft's real magic happens within the `SCRIPTS_DIR` directory: With the `-p SCRIPTS_DIR` CLI option (or `--paths=SCRIPTS_DIR`), you tell StateCraft what to create and mount. You do this by either creating custom state scripts declaring the `setup_path` function (written in GNU Bash, details below), or by creating symbolic links to built-in state scripts like `bind.sh` or `disk-info.sh`. The state script's filename encodes the path you want StateCraft to create (whether StateCraft creates a file, directory, or mount point there depends on the state script), followed by `.state.sh`. If the source path is different from the target path, create or symlink a state script matching `<target>+<source>.state.sh`, with both paths encoded individually.
 
-For example, if you want to create a replica of `/home/daniel/Open Source/statecraft` within a `StateCraft` sub-directory, you first need to encode both paths using `statecraft -e` (`statecraft -e "/home/daniel/Open Source/statecraft"` returns `home-daniel-Open\x20Source-statecraft`, and `statecraft -e "/StateCraft"` returns `StateCraft`). You then create a symbolic link using the format `<target>+<source>.state.sh` (i.e., `StateCraft+home-daniel-Open\x20Source-statecraft.state.sh`) pointing to `/usr/local/lib/statecraft/state-scripts/bind.sh`. This allows you to run `statecraft` with the command you wish to run, e.g., [`tree -p`](https://en.wikipedia.org/wiki/Tree_%28command%29) (matching the `COMMAND [ARG]...` CLI argument). Since mounting usually requires root permissions, we run StateCraft with `sudo`.
+For example, if you want to create a replica of `/home/daniel/Open Source/statecraft` within a `StateCraft` sub-directory, you first need to encode both paths using `statecraft -e` (`statecraft -e "/home/daniel/Open Source/statecraft"` returns `home-daniel-Open\x20Source-statecraft`, and `statecraft -e "/StateCraft"` returns `StateCraft`). You then create a symbolic link using the format `<target>+<source>.state.sh` (i.e., `StateCraft+home-daniel-Open\x20Source-statecraft.state.sh`) pointing to `/usr/local/lib/statecraft/state-scripts/bind.sh`. This allows you to run `statecraft` with the command you wish to run, e.g., [`tree -p`](https://en.wikipedia.org/wiki/Tree_%28command%29) (matching the `COMMAND [ARG]...` CLI argument). Since mounting usually requires root permissions, we run StateCraft in a root shell (e.g., with `sudo -s`).
 
 ```console
-$ mkdir ./paths.d
-$ ln -s /usr/local/lib/statecraft/state-scripts/bind.sh ./paths.d/$(statecraft -e "/StateCraft")+$(statecraft -e "/home/daniel/Open Source/statecraft").state.sh
-$ ls -1 ./paths.d/
+# mkdir ./paths.d
+# ln -s /usr/local/lib/statecraft/state-scripts/bind.sh ./paths.d/$(statecraft -e "/StateCraft")+$(statecraft -e "/home/daniel/Open Source/statecraft").state.sh
+# ls -1 ./paths.d/
 'StateCraft+home-daniel-Open\x20Source-statecraft.state.sh'
-$ sudo statecraft -p ./paths.d tree -p
+# statecraft -p ./paths.d tree -p
 Create 1 path(s) at '/run/statecraft/RdeU2BSLbT_mount'
 Creating '/StateCraft' with built-in 'bind.sh' script
 Bind mount '/home/daniel/Open Source/statecraft' to '/StateCraft'
@@ -145,6 +145,8 @@ Unmount '/StateCraft'
 By default, StateCraft will create the configured directory structure within a randomly named directory below `$XDG_RUNTIME_DIR/statecraft`. If the `$XDG_RUNTIME_DIR` environment variable is not set or is empty, it defaults to `/run` for root, and `/run/user/$UID` for other users. Since mounting filesystems usually requires root permissions, StateCraft typically places the created directory structure below `/run/statecraft`. To change this behavior, pass the `-t TARGET_DIR` CLI option (or `--target=TARGET_DIR`). Please note that even when this CLI option is given, StateCraft will still create a random directory below `$XDG_RUNTIME_DIR/statecraft` to store state data.
 
 StateCraft prints various informational messages to stdout by default. To suppress this, pass the `-q` CLI option (or `--quiet`); StateCraft itself will be silent, but stdout and stderr of `COMMAND` are still passed through as before. To increase verbosity and print debug messages to stderr, pass the `-v` CLI option (or `--verbose`).
+
+For security reasons, StateCraft will reject running state scripts that are writable by other unprivileged users.
 
 ### 🔐 Encoding paths in state scripts
 

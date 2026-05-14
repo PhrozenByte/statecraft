@@ -201,7 +201,7 @@ else
     SCRIPTS_DIR="$LIB_DIR/paths.d"
 fi
 
-check_path "$SCRIPTS_DIR" "Invalid state script directory" -edrxs
+check_path "$SCRIPTS_DIR" "Invalid state script directory" -edrxst
 
 # create random runtime directory
 RUN_DIR="$XDG_RUNTIME_DIR/statecraft"
@@ -248,7 +248,7 @@ __get_paths() {
                 "State script filename encodes no valid target path" >&2; return 1; }
         fi
 
-        check_path "$SCRIPT" "Invalid path ${ID@Q}: Invalid state script" -efr
+        check_path "$SCRIPT" "Invalid path ${ID@Q}: Invalid state script" -efrt
 
         PATHS+=( "$ID" )
     done
