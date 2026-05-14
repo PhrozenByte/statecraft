@@ -53,7 +53,7 @@ _btrfs_source() {
 
 _btrfs_mountpoint() {
     local ID="$1"
-    local MOUNT="$(unescape_path "$ID")"
+    local MOUNT="$(unescape_source_path "$ID")"
 
     check_path "$MOUNT" "Invalid path ${ID@Q}: Invalid btrfs subvolume" -edrx
     is_mountpoint "$MOUNT" || { echo "Invalid path ${ID@Q}:" \
@@ -201,9 +201,6 @@ _setup_btrfs_mount() {
         check_path "$SUBVOLUME_PATH" "$SUBVOLUME_PATH_INVALID" -edrx
     fi
 
-    # create target mountpoint, if necessary
-    mkmountpoint "$TARGET_DIR" "$ID"
-
     # create snapshot
     local SNAPSHOT= SNAPSHOT_PATH=
     if [ "$SUBVOLUME" == "/" ]; then
@@ -217,9 +214,13 @@ _setup_btrfs_mount() {
     _btrfs_snapshot_create "$SUBVOLUME_PATH" "$SNAPSHOT_PATH"
     _btrfs_snapshot_delete "$SNAPSHOT_PATH"
 
+    # create target mountpoint, if necessary
+    mkmountpoint "$TARGET_DIR" "$ID"
+
     # mount snapshot
-    _btrfs_snapshot_mount "$MOUNT" "$SNAPSHOT" "$SNAPSHOT_PATH" "$DEVICE" "${DEVICES[@]}"
-    _btrfs_snapshot_umount "$MOUNT"
+    local MOUNT_TARGET="$(unescape_target_path "$ID")"
+    _btrfs_snapshot_mount "$MOUNT_TARGET" "$SNAPSHOT" "$SNAPSHOT_PATH" "$DEVICE" "${DEVICES[@]}"
+    _btrfs_snapshot_umount "$MOUNT_TARGET"
     return 0
 }
 

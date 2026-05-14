@@ -40,7 +40,7 @@ _lvm_device() {
 
 _lvm_mountpoint() {
     local ID="$1"
-    local MOUNT="$(unescape_path "$ID")"
+    local MOUNT="$(unescape_source_path "$ID")"
 
     check_path "$MOUNT" "Invalid path ${ID@Q}: Invalid LVM volume" -edrx
     mountpoint -q "$MOUNT" || { echo "Invalid path ${ID@Q}:" \
@@ -108,8 +108,9 @@ _setup_lvm_mount() {
     mkmountpoint "$TARGET_DIR" "$ID"
 
     # mount snapshot
-    _lvm_snapshot_mount "$SNAPSHOT" "$MOUNT"
-    _lvm_snapshot_umount "$MOUNT"
+    local MOUNT_TARGET="$(unescape_target_path "$ID")"
+    _lvm_snapshot_mount "$SNAPSHOT" "$MOUNT_TARGET"
+    _lvm_snapshot_umount "$MOUNT_TARGET"
 
     return 0
 }

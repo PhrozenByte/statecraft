@@ -31,7 +31,7 @@ _disk_info() {
 
     local ID= MOUNT= DISK= DISK_META= FS_META= MOUNT_META=
     for ID in "${PATHS[@]}"; do
-        MOUNT="$(unescape_path "$ID")"
+        MOUNT="$(unescape_source_path "$ID")"
 
         # skip paths that are no mount points (e.g. the 'disk-info.sh' state script)
         DISK="$(mountinfo "$MOUNT" source ||:)"

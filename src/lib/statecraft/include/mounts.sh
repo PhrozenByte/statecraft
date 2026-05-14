@@ -54,29 +54,49 @@ mountinfo() {
 mkmountpoint() {
     local BASE_DIR="$1"
     local ID="$2"
-    local MOUNT="$(unescape_path "$ID")"
-    local DIR="${3:-$MOUNT}"
+    local MOUNT_TARGET="$(unescape_target_path "$ID")"
+    local DIR="${3:-$MOUNT_TARGET}"
 
     if [ ! -e "$BASE_DIR$DIR" ]; then
-        local SUBDIR= SUBDIR_SRC= SUBDIR_DST=
+        local SUBDIR_SRC= SUBDIR_SRC_STRIP=
+        if [ -z "${3:-}" ]; then
+            local MOUNT_SOURCE="$(unescape_source_path "$ID")"
+
+            # strip '/foo/bar' from $SUBDIR_SRC from $MOUNT_TARGET with '/foo/bar/some/path+/some/path' IDs
+            # this makes source and target path match again, allowing for `chmod`, `chown`, `chcon` below
+            local STRIP_PATH="$MOUNT_TARGET"
+            [[ "$MOUNT_TARGET" != *"$MOUNT_SOURCE" ]] \
+                || STRIP_PATH="${MOUNT_TARGET:0:-${#MOUNT_SOURCE}}"
+            STRIP_PATH="${STRIP_PATH//[^\/]/}"
+            SUBDIR_SRC_STRIP=${#STRIP_PATH}
+        fi
+
+        local SUBDIR= SUBDIR_ABS= SUBDIR_DST=
         while IFS= read -u 3 -d '/' -r SUBDIR; do
-            SUBDIR_SRC+="/$SUBDIR"
-            SUBDIR_DST="$BASE_DIR$SUBDIR_SRC"
+            SUBDIR_ABS+="/$SUBDIR"
+            SUBDIR_DST="$BASE_DIR$SUBDIR_ABS"
+
+            [ -z "$SUBDIR_SRC_STRIP" ] \
+                || { (( SUBDIR_SRC_STRIP > 0 )) && ((SUBDIR_SRC_STRIP--)); } \
+                    || SUBDIR_SRC+="/$SUBDIR"
+
             if [ ! -e "$SUBDIR_DST" ]; then
                 check_path "$(dirname "$SUBDIR_DST")" \
-                    "Invalid path ${ID@Q}: Unable to create ${MOUNT@Q} below" -dwx
+                    "Invalid path ${ID@Q}: Unable to create ${MOUNT_TARGET@Q} below" -dwx
 
                 cmd mkdir "$SUBDIR_DST"
                 trap_exit rmdir "$SUBDIR_DST"
 
-                cmd chmod "$(stat -c '%a' -L "$SUBDIR_SRC")" "$SUBDIR_DST"
-                cmd chown "$(stat -c '%u:%g' -L "$SUBDIR_SRC")" "$SUBDIR_DST"
-                [ -z "$SELINUX" ] || cmd chcon "$(stat -c '%C' -L "$SUBDIR_SRC")" "$SUBDIR_DST"
+                if [ -n "$SUBDIR_SRC" ]; then
+                    cmd chmod "$(stat -c '%a' -L "$SUBDIR_SRC")" "$SUBDIR_DST"
+                    cmd chown "$(stat -c '%u:%g' -L "$SUBDIR_SRC")" "$SUBDIR_DST"
+                    [ -z "$SELINUX" ] || cmd chcon "$(stat -c '%C' -L "$SUBDIR_SRC")" "$SUBDIR_DST"
+                fi
             else
-                check_path "$SUBDIR_DST" "Invalid path ${ID@Q}: Unable to create ${MOUNT@Q} below" -d
+                check_path "$SUBDIR_DST" "Invalid path ${ID@Q}: Unable to create ${MOUNT_TARGET@Q} below" -d
             fi
         done 3< <(printf '%s' "${DIR#/}/")
     else
-        check_path "$BASE_DIR$DIR" "Invalid path ${ID@Q}: Unable to create ${MOUNT@Q} at" -d
+        check_path "$BASE_DIR$DIR" "Invalid path ${ID@Q}: Unable to create ${MOUNT_TARGET@Q} at" -d
     fi
 }

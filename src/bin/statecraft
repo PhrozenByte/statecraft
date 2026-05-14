@@ -235,12 +235,18 @@ __get_paths() {
     local SCRIPT= ID= DIR=
     for SCRIPT in "$SCRIPTS_DIR/"*".state.sh"; do
         ID="$(basename "$SCRIPT" ".state.sh")"
-        [[ "$ID" =~ ^([a-zA-Z0-9:._-]|\\x[0-9a-f]{2})+$ ]] \
+        [[ "$ID" =~ ^([a-zA-Z0-9:._-]|\\x[0-9a-f]{2})+(\+([a-zA-Z0-9:._-]|\\x[0-9a-f]{2})+)?$ ]] \
             || { echo "Invalid path ${ID@Q}: Malformed state script filename" >&2; exit 1; }
 
-        DIR="$(unescape_path "$ID" 2> /dev/null ||:)"
-        [ -n "$DIR" ] || { echo "Invalid path ${ID@Q}:" \
-            "State script filename encodes no valid path" >&2; return 1; }
+        SOURCE_DIR="$(unescape_path "${BASH_REMATCH[1]}" 2> /dev/null ||:)"
+        [ -n "$SOURCE_DIR" ] || { echo "Invalid path ${ID@Q}:" \
+            "State script filename encodes no valid source path" >&2; return 1; }
+
+        if [ -n "${BASH_REMATCH[3]}" ]; then
+            TARGET_DIR="$(unescape_path "${BASH_REMATCH[3]}" 2> /dev/null ||:)"
+            [ -n "$TARGET_DIR" ] || { echo "Invalid path ${ID@Q}:" \
+                "State script filename encodes no valid target path" >&2; return 1; }
+        fi
 
         check_path "$SCRIPT" "Invalid path ${ID@Q}: Invalid state script" -efr
 
@@ -248,7 +254,7 @@ __get_paths() {
     done
 
     [ "${#PATHS[@]}" -eq 0 ] \
-        || printf '%s\n' "${PATHS[@]}" | sort
+        || printf '%s\n' "${PATHS[@]}" | sort -t '+' -k 1,1 -k 2,2
 }
 
 PATHS=()
@@ -265,7 +271,7 @@ __log_path_info() {
         || [ "$(dirname "$(realpath "$SCRIPT")")" != "$(realpath "$LIB_DIR/state-scripts")" ] \
         || SCRIPT_DESC="built-in '$(basename "$(realpath "$SCRIPT")")' script"
 
-    local DIR="$(unescape_path "$ID")"
+    local DIR="$(unescape_target_path "$ID")"
     echo "Creating ${DIR@Q} with $SCRIPT_DESC"
 }
 

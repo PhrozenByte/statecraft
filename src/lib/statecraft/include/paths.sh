@@ -80,3 +80,13 @@ unescape_path() {
     # printf additionally replaces escaped characters (e.g. '\x20' gets ' ')
     printf "/$(sed -e 's#-#/#g' <<< "$INPUT")\n"
 }
+
+unescape_source_path() {
+    # either 'source' of a 'target+source' string, or the input string as-is
+    unescape_path "${1#*+}"
+}
+
+unescape_target_path() {
+    # either 'target' of a 'target+source' string, or the input string as-is
+    unescape_path "${1%%+*}"
+}

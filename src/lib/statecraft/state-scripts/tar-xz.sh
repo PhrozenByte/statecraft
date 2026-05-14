@@ -29,11 +29,11 @@ _setup_tar_archive() {
     local ID="$1"
 
     # get directory to compress
-    local MOUNT="$(unescape_path "$ID")"
+    local MOUNT="$(unescape_source_path "$ID")"
     check_path "$MOUNT" "Invalid path ${ID@Q}: Invalid archive contents path" -edrx
 
     # create archive
-    local FILENAME="$MOUNT.tar.xz"
+    local FILENAME="$(unescape_target_path "$ID").tar.xz"
     check_path "$TARGET_DIR$FILENAME" "Invalid path ${ID@Q}: Invalid archive file" +e
 
     quiet "Create archive ${FILENAME@Q} of ${MOUNT@Q}"

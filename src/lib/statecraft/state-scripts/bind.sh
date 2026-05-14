@@ -23,10 +23,13 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 _bind_mount() {
-    local MOUNT="$1"
+    local MOUNT_SOURCE="$1"
+    local MOUNT_TARGET="${2:-$1}"
 
-    quiet "Bind mount ${MOUNT@Q}"
-    cmd mount -o bind,ro "$MOUNT" "$TARGET_DIR$MOUNT"
+    [ "$MOUNT_SOURCE" == "$MOUNT_TARGET" ] \
+        && quiet "Bind mount ${MOUNT_TARGET@Q}" \
+        || quiet "Bind mount ${MOUNT_SOURCE@Q} to ${MOUNT_TARGET@Q}"
+    cmd mount -o bind,ro "$MOUNT_SOURCE" "$TARGET_DIR$MOUNT_TARGET"
 }
 
 _bind_umount() {
@@ -39,15 +42,18 @@ _bind_umount() {
 _setup_bind_mount() {
     local ID="$1"
 
-    local MOUNT="$(unescape_path "$ID")"
-    check_path "$MOUNT" "Invalid path ${ID@Q}: Invalid bind mount source path" -edrx
+    local MOUNT_SOURCE="$(unescape_source_path "$ID")"
+    local MOUNT_TARGET="$(unescape_target_path "$ID")"
+
+    # check source mountpoint
+    check_path "$MOUNT_SOURCE" "Invalid path ${ID@Q}: Invalid bind mount source path" -edrx
 
     # create target mountpoint, if necessary
     mkmountpoint "$TARGET_DIR" "$ID"
 
     # bind mount the directory
-    _bind_mount "$MOUNT"
-    _bind_umount "$MOUNT"
+    _bind_mount "$MOUNT_SOURCE" "$MOUNT_TARGET"
+    _bind_umount "$MOUNT_TARGET"
 
     return 0
 }
