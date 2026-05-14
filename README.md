@@ -36,13 +36,26 @@ StateCraft uses shell scripts to create complex directory structures. Each scrip
 
 StateCraft builds the desired directory structure inside a target directory (CLI option `--target`) by executing state scripts (`*.state.sh`) stored in a `paths.d` directory (CLI option `--paths`). After constructing the environment, it runs a specified command (CLI arguments `COMMAND [ARGS]...`) within this context. Upon completion, StateCraft tears down the target directory by reversing the actions taken — i.e., unmounting filesystems, deleting snapshots, removing files and directories, or undoing any other script effects.
 
-Each state script represents a path encoded in its filename. Typically, a symbolic link is created to one of the built-in state scripts. These include scripts for bind mounts ([`bind.sh`](./src/lib/statecraft/state-scripts/bind.sh)), [Btrfs](https://btrfs.readthedocs.io/en/latest/) snapshots ([`btrfs.sh`](./src/lib/statecraft/state-scripts/btrfs.sh)), and [LVM](https://sourceware.org/lvm2/) snapshots ([`lvm.sh`](./src/lib/statecraft/state-scripts/lvm.sh)). Alternatively, you can create a [XZ](https://tukaani.org/xz/)-compressed [tar](https://en.wikipedia.org/wiki/Tar_(computing)) archive of a path ([`tar-xz.sh`](./src/lib/statecraft/state-scripts/tar-xz.sh)). There also are built-in scripts to gather system information from a [Fedora CoreOS](https://fedoraproject.org/coreos/) (FCOS) server ([`fcos-release.sh`](./src/lib/statecraft/state-scripts/fcos-release.sh)), and information about the disks backing the mount points ([`disk-info.sh`](./src/lib/statecraft/state-scripts/disk-info.sh)). However, custom state scripts can also be used. Such custom scripts may not necessarily mount a filesystem; for example, they could create temporary status files containing system information. Refer to StateCraft's documentation for more details. For encoding the path in the script's filename, StateCraft uses the same encoding method [Systemd](https://systemd.io/) uses for `*.mount` units (see [`systemd-escape(1)`](https://www.freedesktop.org/software/systemd/man/latest/systemd-escape.html)). The encoding can be done with `statecraft --escape` (e.g., `statecraft -e "/home/data"`), and decoding with `statecraft --unescape`.
+Each state script represents a path encoded in its filename. Typically, a symbolic link is created to one of the built-in state scripts. The following state scripts are included:
+
+* [`bind.sh`](./src/lib/statecraft/state-scripts/bind.sh) to bind mount directories,
+* [`btrfs.sh`](./src/lib/statecraft/state-scripts/btrfs.sh) to create and mount [Btrfs](https://btrfs.readthedocs.io/en/latest/) snapshots,
+* [`lvm.sh`](./src/lib/statecraft/state-scripts/lvm.sh) to create and mount [LVM](https://sourceware.org/lvm2/) snapshots,
+* [`tar-xz.sh`](./src/lib/statecraft/state-scripts/tar-xz.sh) to create a [XZ](https://tukaani.org/xz/)-compressed [tar](https://en.wikipedia.org/wiki/Tar_(computing)) archive from a path,
+* [`fcos-release.sh`](./src/lib/statecraft/state-scripts/fcos-release.sh) to gather system information about a [Fedora CoreOS](https://fedoraproject.org/coreos/) (FCOS) server and write them to a JSON file, and
+* [`disk-info.sh`](./src/lib/statecraft/state-scripts/disk-info.sh) to gather information about the disks backing the mount points and writing them to a JSON file.
+
+However, custom state scripts can also be used. Such custom scripts may not necessarily mount a filesystem; for example, they could create temporary status files containing system information. Refer to the ["Custom state scripts" section](#%EF%B8%8F-custom-state-scripts) below for details.
+
+Sometimes you don't want to create a 1:1 representation of the sources in your target directory. For example, when backing up your system, you might not want to mount `/` directly into your target directory, but instead into a sub-directory like `/data`, allowing you to include status information next to your data. To support this, StateCraft allows you to encode both source and target paths in a state script's filename using the format `<target>+<source>.state.sh`.
+
+To encode a path in a state script's filename, StateCraft uses the same encoding method that [Systemd](https://systemd.io/) uses for `*.mount` units (see [`systemd-escape(1)`](https://www.freedesktop.org/software/systemd/man/latest/systemd-escape.html)). Paths can be encoded with `statecraft --escape` (e.g., `statecraft -e "/home/data"`) and decoded with `statecraft --unescape`. When encoding source and target paths, both paths must be encoded separately. Refer to the ["Encoding paths in state scripts" section](#-encoding-paths-in-state-scripts) below for details.
 
 StateCraft was created as a more versatile and powerful alternative to [@PhrozenByte](https://github.com/PhrozenByte)'s [`btrfs-snapshot-run`](https://gist.github.com/PhrozenByte/7aefc19767f51103045d12538173d1b4). However, StateCraft doesn't supersede `btrfs-snapshot-run`: If you only need to create temporary snapshots of a single Btrfs filesystem, you should use the simpler `btrfs-snapshot-run`.
 
 Pull requests adding more built-in state scripts are very welcome, provided they are universally useful. This isn't limited to mounting filesystems (e.g., mounting read-only snapshots of [ZFS](https://openzfs.org) or [bcachefs](https://bcachefs.org/)), but also includes collecting universally useful system information (e.g., installed [Flatpak](https://flatpak.org/) packages or packages from any other Linux package manager). When in doubt, create a pull request — sharing is caring!
 
-StateCraft is free and open-source software, released under the terms of the [GNU General Public License v3](./LICENSE). Pull requests to improve or extend StateCraft, or to fix any issues, are very welcome! However, please open a new issue on GitHub before developing major changes — it's always better to discuss major changes beforehand. If you experience any issues with StateCraft, don't hesitate to open a new issue on GitHub. Please check StateCraft's documentation and previous GitHub issues first.
+StateCraft is free and open-source software, released under the terms of the [GNU General Public License v3](./LICENSE). Pull requests to improve or extend StateCraft, or to fix any issues, are very welcome! However, if you are about to develop major changes, please open a new issue on GitHub first — it's always better to discuss major changes beforehand. If you experience any issues with StateCraft, don't hesitate to open a new issue on GitHub. Please check StateCraft's documentation and previous GitHub issues first.
 
 ---
 
@@ -88,45 +101,45 @@ Usage:
 
 ### ⚡ Running StateCraft
 
-StateCraft's real magic happens within the `SCRIPTS_DIR` directory: With the `-p SCRIPTS_DIR` CLI option (or `--paths=SCRIPTS_DIR`), you tell StateCraft what to create and mount. You do this by either creating custom state scripts declaring the `setup_path` function (written in GNU Bash, details below), or by creating symbolic links to built-in state scripts like `bind.sh` or `disk-info.sh`. The state script's filename encodes the path you want StateCraft to create (whether StateCraft creates a file, directory, or mount point there depends on the state script), followed by `.state.sh`. For example, if you want to create a replica of `/home/daniel/Open Source/statecraft`, you first need to encode the path with `statecraft -e "/home/daniel/Open Source/statecraft"` (which returns `home-daniel-Open\x20Source-statecraft`), and then create a symbolic link `home-daniel-Open\x20Source-statecraft.state.sh` pointing to `/usr/local/lib/statecraft/state-scripts/bind.sh`. This allows you to run `statecraft` with the command you wish to run, e.g., [`tree -p`](https://en.wikipedia.org/wiki/Tree_%28command%29) (matching the `COMMAND [ARG]...` CLI argument). Since mounting usually requires root permissions, we run StateCraft with `sudo`.
+StateCraft's real magic happens within the `SCRIPTS_DIR` directory: With the `-p SCRIPTS_DIR` CLI option (or `--paths=SCRIPTS_DIR`), you tell StateCraft what to create and mount. You do this by either creating custom state scripts declaring the `setup_path` function (written in GNU Bash, details below), or by creating symbolic links to built-in state scripts like `bind.sh` or `disk-info.sh`. The state script's filename encodes the path you want StateCraft to create (whether StateCraft creates a file, directory, or mount point there depends on the state script), followed by `.state.sh`. If the source path is different from the target path, create or symlink a state script matching `<target>+<source>.state.sh`, with both paths encoded individually.
+
+For example, if you want to create a replica of `/home/daniel/Open Source/statecraft` within a `StateCraft` sub-directory, you first need to encode both paths using `statecraft -e` (`statecraft -e "/home/daniel/Open Source/statecraft"` returns `home-daniel-Open\x20Source-statecraft`, and `statecraft -e "/StateCraft"` returns `StateCraft`). You then create a symbolic link using the format `<target>+<source>.state.sh` (i.e., `StateCraft+home-daniel-Open\x20Source-statecraft.state.sh`) pointing to `/usr/local/lib/statecraft/state-scripts/bind.sh`. This allows you to run `statecraft` with the command you wish to run, e.g., [`tree -p`](https://en.wikipedia.org/wiki/Tree_%28command%29) (matching the `COMMAND [ARG]...` CLI argument). Since mounting usually requires root permissions, we run StateCraft with `sudo`.
 
 ```console
 $ mkdir ./paths.d
-$ ln -s /usr/local/lib/statecraft/state-scripts/bind.sh ./paths.d/$(statecraft -e "/home/daniel/Open Source/statecraft").state.sh
+$ ln -s /usr/local/lib/statecraft/state-scripts/bind.sh ./paths.d/$(statecraft -e "/StateCraft")+$(statecraft -e "/home/daniel/Open Source/statecraft").state.sh
+$ ls -1 ./paths.d/
+'StateCraft+home-daniel-Open\x20Source-statecraft.state.sh'
 $ sudo statecraft -p ./paths.d tree -p
 Create 1 path(s) at '/run/statecraft/RdeU2BSLbT_mount'
-Creating '/home/daniel/Open Source/statecraft' with built-in 'bind.sh' script
-Bind mount '/home/daniel/Open Source/statecraft'
+Creating '/StateCraft' with built-in 'bind.sh' script
+Bind mount '/home/daniel/Open Source/statecraft' to '/StateCraft'
 Run `tree` within '/run/statecraft/RdeU2BSLbT_mount'
-[drwx------]  .
-└── [drwxr-xr-x]  home
-    └── [drwx------]  daniel
-        └── [drwxr-xr-x]  Open Source
-            └── [drwxr-xr-x]  statecraft
-                ├── [-rw-r--r--]  LICENSE
-                ├── [-rw-r--r--]  Makefile
-                ├── [-rw-r--r--]  README.md
-                ├── [-rw-r--r--]  USAGE_EXAMPLE.md
-                └── [drwxr-xr-x]  src
-                    ├── [drwxr-xr-x]  bin
-                    │   └── [-rwxrwxr-x]  statecraft
-                    └── [drwxr-xr-x]  lib
-                        └── [drwxr-xr-x]  statecraft
-                            ├── [drwxr-xr-x]  include
-                            │   ├── [-rw-r--r--]  mounts.sh
-                            │   ├── [-rw-r--r--]  paths.sh
-                            │   ├── [-rw-r--r--]  traps.sh
-                            │   └── [-rw-r--r--]  utils.sh
-                            ├── [drwxr-xr-x]  paths.d
-                            └── [drwxr-xr-x]  state-scripts
-                                ├── [-rw-r--r--]  bind.sh
-                                ├── [-rw-r--r--]  btrfs.sh
-                                ├── [-rw-r--r--]  disk-info.sh
-                                ├── [-rw-r--r--]  fcos-release.sh
-                                └── [-rw-r--r--]  lvm.sh
+[drwxr-xr-x]  StateCraft
+├── [-rw-r--r--]  LICENSE
+├── [-rw-r--r--]  Makefile
+├── [-rw-r--r--]  README.md
+├── [-rw-r--r--]  USAGE_EXAMPLE.md
+└── [drwxr-xr-x]  src
+    ├── [drwxr-xr-x]  bin
+    │   └── [-rwxrwxr-x]  statecraft
+    └── [drwxr-xr-x]  lib
+        └── [drwxr-xr-x]  statecraft
+            ├── [drwxr-xr-x]  include
+            │   ├── [-rw-r--r--]  mounts.sh
+            │   ├── [-rw-r--r--]  paths.sh
+            │   ├── [-rw-r--r--]  traps.sh
+            │   └── [-rw-r--r--]  utils.sh
+            ├── [drwxr-xr-x]  paths.d
+            └── [drwxr-xr-x]  state-scripts
+                ├── [-rw-r--r--]  bind.sh
+                ├── [-rw-r--r--]  btrfs.sh
+                ├── [-rw-r--r--]  disk-info.sh
+                ├── [-rw-r--r--]  fcos-release.sh
+                └── [-rw-r--r--]  lvm.sh
 
-12 directories, 14 files
-Unmount '/home/daniel/Open Source/statecraft'
+8 directories, 14 files
+Unmount '/StateCraft'
 ```
 
 By default, StateCraft will create the configured directory structure within a randomly named directory below `$XDG_RUNTIME_DIR/statecraft`. If the `$XDG_RUNTIME_DIR` environment variable is not set or is empty, it defaults to `/run` for root, and `/run/user/$UID` for other users. Since mounting filesystems usually requires root permissions, StateCraft typically places the created directory structure below `/run/statecraft`. To change this behavior, pass the `-t TARGET_DIR` CLI option (or `--target=TARGET_DIR`). Please note that even when this CLI option is given, StateCraft will still create a random directory below `$XDG_RUNTIME_DIR/statecraft` to store state data.
@@ -135,7 +148,9 @@ StateCraft prints various informational messages to stdout by default. To suppre
 
 ### 🔐 Encoding paths in state scripts
 
-As noted earlier, you tell StateCraft the paths to create by encoding them within a state script's filename. StateCraft uses the same encoding method Systemd uses for `*.mount` units (see `systemd-escape(1)`), but comes with its own implementation of the encoding algorithm. To escape a path, run with the `-e ABSOLUTE_PATH` CLI option (or `--escape=ABSOLUTE_PATH`). You must provide a normalized absolute path (i.e., it must start with `/` and not include path components like `..`). Remember to quote escaped paths appropriately, otherwise your shell might interpret escape sequences incorrectly. To reverse StateCraft's escape operation, run with the `-u ESCAPED_PATH` CLI option (or `--unescape=ESCAPED_PATH`). Both commands will output the escaped (with `-e`) or original (with `-u`) path, or print an error message and exit with a non-zero status code in case of invalid inputs.
+As noted earlier, you tell StateCraft which paths to create by encoding them in a state script's filename. If source and target paths differ, both paths must be encoded individually and then concatenated using the format `<target>+<source>`. State scripts must use the `*.state.sh` file extension.
+
+StateCraft uses the same encoding method Systemd uses for `*.mount` units (see `systemd-escape(1)`), but comes with its own implementation of the encoding algorithm. To escape a path, run with the `-e ABSOLUTE_PATH` CLI option (or `--escape=ABSOLUTE_PATH`). You must provide a normalized absolute path (i.e., it must start with `/` and not include path components like `..`). Remember to quote escaped paths appropriately, otherwise your shell might interpret escape sequences incorrectly. To reverse StateCraft's escape operation, run with the `-u ESCAPED_PATH` CLI option (or `--unescape=ESCAPED_PATH`). Both commands will output the escaped (with `-e`) or original (with `-u`) path, or print an error message and exit with a non-zero status code in case of invalid inputs.
 
 ```console
 $ statecraft -e "/home/daniel/Open Source/statecraft"
@@ -148,7 +163,7 @@ $ statecraft -u "home-daniel-Open\x20Source-statecraft"
 
 StateCraft ships with many generally useful state scripts, but sometimes you want to do things that aren't possible with StateCraft's built-in scripts — like not including files as they are on your filesystem, but only what has changed in comparison to some previous state. State scripts are GNU Bash shell snippets that are `source`d by StateCraft's main script. All state scripts must declare the `setup_path` function, which implements the script's functionality. Besides declaring the `setup_path` function and possibly other functions used by `setup_path`, state scripts must not execute any active code besides checking for runtime dependencies.
 
-The `setup_path` function is called by StateCraft with the basename of the state script as its only parameter (i.e., StateCraft `source`s the `home-daniel-Open\x20Source-statecraft.state.sh` script and calls `setup_path "home-daniel-Open\x20Source-statecraft"`). You can use StateCraft's `unescape_path` function (from [`paths.sh`](./src/lib/statecraft/include/paths.sh)) to convert this to an actual filesystem path (i.e., `unescape_path "$1"`). With that information, you can do whatever you want — just make sure that all actions are reversible. Use StateCraft's `trap_exit` and `trap_exit_eval` functions (from [`traps.sh`](./src/lib/statecraft/include/traps.sh)) to specify how to reverse the actions; the commands passed will be called in reverse order.
+The `setup_path` function is called by StateCraft with the basename of the state script as its only parameter (i.e., StateCraft `source`s the `StateCraft+home-daniel-Open\x20Source-statecraft.state.sh` script and calls `setup_path "StateCraft+home-daniel-Open\x20Source-statecraft"`). You can use StateCraft's `unescape_source_path` and `unescape_target_path` functions (from [`paths.sh`](./src/lib/statecraft/include/paths.sh)) to convert this to an actual filesystem path (i.e., `unescape_source_path "$1"`, and `unescape_target_path "$1"`). With that information, you can do whatever you want — just make sure that all actions are reversible. Use StateCraft's `trap_exit` and `trap_exit_eval` functions (from [`traps.sh`](./src/lib/statecraft/include/traps.sh)) to specify how to reverse the actions; the commands passed will be called in reverse order.
 
 State scripts can use all of StateCraft's public API defined in the [`include` directory](./src/lib/statecraft/include/), or extend built-in state scripts in the [`state-scripts` directory](./src/lib/statecraft/state-scripts/). Common variables include StateCraft's app name (`$APP_NAME`), version (`$VERSION`), build date (`$BUILD`), whether SELinux is enabled (`$SELINUX` is set to `"y"` if SELinux is enabled, `""` otherwise), a random run ID (`$RUN_ID`; random string with 10 ASCII letters and digits), and the paths to `/usr/local/lib/statecraft` (`$LIB_DIR`) and `/run/statecraft/$RUN_ID` (`$RUN_DIR`). The `--quiet` (`$QUIET` is set to `"y"` if `--quiet` is given, `""` otherwise), `--verbose` (`$VERBOSE` is set to `"y"` if `--verbose` is given, `""` otherwise), `--paths` (`$SCRIPTS_DIR`, or directly use the `${PATHS[@]}` array with the list of paths), `--target` (`$TARGET_DIR`), and `COMMAND [ARGS...]` (`${COMMAND[@]}`) CLI options are readable too.
 
