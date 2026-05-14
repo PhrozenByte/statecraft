@@ -32,7 +32,7 @@ mountinfo() {
 
     is_mountpoint "$MOUNT"
 
-    MOUNT="$(realpath "$MOUNT")"
+    MOUNT="$(realpath "$MOUNT" 2> /dev/null ||:)"
     [ -n "$MOUNT" ]
 
     [ "$FIELD" != "target" ] || { echo "$MOUNT"; return 0; }
