@@ -5,7 +5,7 @@
 # It supports mounting snapshots, creating files, archives, and more.
 # Designed for admins seeking flexible, scriptable backup setups.
 #
-# Copyright (C) 2025  Daniel Rudolf <https://www.daniel-rudolf.de>
+# Copyright (C) 2025-2026  Daniel Rudolf <https://www.daniel-rudolf.de>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
