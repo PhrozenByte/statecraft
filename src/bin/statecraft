@@ -176,7 +176,7 @@ unset ESCAPE_PATH ESCAPE
 if [ "${#COMMAND[@]}" -eq 0 ]; then
     print_usage >&2
     exit 1
-elif [ ! -x "$(type -p "${COMMAND[0]}")" ]; then
+elif [ ! -x "$(type -P "${COMMAND[0]}")" ]; then
     echo "Invalid command ${COMMAND[0]@Q}: Command not found or not executable" >&2
     exit 127
 fi
@@ -301,8 +301,8 @@ __RUNNING=y
 __EXIT=0
 (
     cmd cd "$TARGET_DIR"
-    verbose + "$(type -p "${COMMAND[0]}")" "${COMMAND[@]:1}"
-    exec "$(type -p "${COMMAND[0]}")" "${COMMAND[@]:1}"
+    verbose + "$(type -P "${COMMAND[0]}")" "${COMMAND[@]:1}"
+    exec "$(type -P "${COMMAND[0]}")" "${COMMAND[@]:1}"
 ) || { __EXIT=$?; :; }
 __RUNNING=
 
