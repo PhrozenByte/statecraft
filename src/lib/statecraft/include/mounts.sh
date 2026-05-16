@@ -51,6 +51,31 @@ mountinfo() {
     [ -n "$RESULT" ] && printf '%b\n' "$RESULT"
 }
 
+mountinfo_dev() {
+    local DEVICE="$1"
+    local FIELD="${2,,}"
+
+    [ -b "$DEVICE" ]
+
+    local MAJ_MIN="$(mountpoint -x "$DEVICE" 2>/dev/null ||:)"
+    [[ "$MAJ_MIN" =~ ^[0-9]+:[0-9]+$ ]]
+
+    [ "$FIELD" != "maj:min" ] || { echo "$MOUNT"; return 0; }
+
+    local PROG=
+    case "$FIELD" in
+        "fsroot")  PROG='$3 == d { print $4 }' ;;
+        "target")  PROG='$3 == d { print $5 }' ;;
+        "fstype")  PROG='$3 == d { for (i=1; i <= NF; i++) { if ($i == "-") { print $(i+1); next } } }' ;;
+        "source")  PROG='$3 == d { for (i=1; i <= NF; i++) { if ($i == "-") { print $(i+2); next } } }' ;;
+        "options") PROG='$3 == d { for (i=1; i <= NF; i++) { if ($i == "-") { print $6 "," $(i+3); next } } }' ;;
+        *)         echo "Failed to read mount info of ${MOUNT@Q}: Unknown field ${FIELD@Q}" >&2; return 1 ;;
+    esac
+
+    local RESULT="$(awk -v d="$MAJ_MIN" "$PROG" /proc/self/mountinfo ||:)"
+    [ -n "$RESULT" ] && printf '%b\n' "$RESULT"
+}
+
 mkmountpoint() {
     local BASE_DIR="$1"
     local ID="$2"
