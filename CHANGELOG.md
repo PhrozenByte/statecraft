@@ -1,6 +1,17 @@
 StateCraft Changelog
 ====================
 
+### Version 1.2.0
+Released: 2026-05-16
+
+New Features:
+* New `external-drive.sh` state script to wait for an external drive to be mounted and bind mounting one of its sub-directories [[e76441d]](https://github.com/PhrozenByte/statecraft/commit/e76441d)
+
+Improvements & Fixes:
+* Use Bash `type -P` for `COMMAND` to force `$PATH` traversal [[399c985]](https://github.com/PhrozenByte/statecraft/commit/399c985)
+* Improve `$LIB_DIR` detection [[502c0c0]](https://github.com/PhrozenByte/statecraft/commit/502c0c0)
+* Add `mountinfo_dev` helper [[4db240e]](https://github.com/PhrozenByte/statecraft/commit/4db240e)
+
 ### Version 1.1.0
 Released: 2026-05-14
 
