@@ -41,6 +41,7 @@ Each state script represents a path encoded in its filename. Typically, a symbol
 * [`bind.sh`](./src/lib/statecraft/state-scripts/bind.sh) to bind mount directories,
 * [`btrfs.sh`](./src/lib/statecraft/state-scripts/btrfs.sh) to create and mount [Btrfs](https://btrfs.readthedocs.io/en/latest/) snapshots,
 * [`lvm.sh`](./src/lib/statecraft/state-scripts/lvm.sh) to create and mount [LVM](https://sourceware.org/lvm2/) snapshots,
+* [`external-drive.sh`](./src/lib/statecraft/state-scripts/external-drive.sh) to wait for an external drive to be mounted and bind mounting one of its sub-directories (source path must match `/<external drive label>[/<relative path>]`),
 * [`tar-xz.sh`](./src/lib/statecraft/state-scripts/tar-xz.sh) to create a [XZ](https://tukaani.org/xz/)-compressed [tar](https://en.wikipedia.org/wiki/Tar_(computing)) archive from a path,
 * [`fcos-release.sh`](./src/lib/statecraft/state-scripts/fcos-release.sh) to gather system information about a [Fedora CoreOS](https://fedoraproject.org/coreos/) (FCOS) server and write them to a JSON file, and
 * [`disk-info.sh`](./src/lib/statecraft/state-scripts/disk-info.sh) to gather information about the disks backing the mount points and writing them to a JSON file.
