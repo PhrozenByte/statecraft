@@ -31,7 +31,7 @@ declare -r VERSION="1.1.0"
 declare -r BUILD="20260514"
 
 declare -r APP_NAME="$(basename "${BASH_SOURCE[0]}")"
-declare -r LIB_DIR="$(realpath "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../lib/statecraft/" 2>/dev/null ||:)"
+declare -r LIB_DIR="$(realpath "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/../lib/statecraft/" 2>/dev/null ||:)"
 
 XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}"
 [ -n "$XDG_RUNTIME_DIR" ] || { [ "$UID" == 0 ] && XDG_RUNTIME_DIR="/run" || XDG_RUNTIME_DIR="/run/user/$UID"; }
